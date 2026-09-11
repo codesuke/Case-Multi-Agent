@@ -150,7 +150,3 @@ credentials or network calls:
 
 - A provider selector is not a secret-management feature. The learner edits
   `.env` or shell configuration before launching Sherlok.
-- GitHub tracking was not updated during planning because this workspace no
-  longer has its `.git` metadata and the configured GitHub repository lookup
-  failed. Create a native child issue under the product master before
-  implementation and copy the three implementation slices into it.

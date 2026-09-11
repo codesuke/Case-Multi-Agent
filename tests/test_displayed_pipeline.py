@@ -153,6 +153,33 @@ def test_run_investigation_displays_selected_provider_and_model_metadata(
     assert "llama-test" not in updates[-1][0]
 
 
+def test_selected_provider_is_used_for_investigation_and_reinvestigation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selected_providers: list[str | None] = []
+
+    def configured_client(provider: str | None = None) -> DisplayLLM:
+        selected_providers.append(provider)
+        return DisplayLLM()
+
+    monkeypatch.setattr(app, "EnvLLMClient", configured_client)
+
+    investigation_updates = list(
+        app.run_investigation("A lens vanished from an observatory.", provider="openai")
+    )
+    transcript, _, _, _, _, _, case_file = investigation_updates[-1]
+    reinvestigation_updates = list(
+        app.run_reinvestigation(
+            case_file,
+            transcript,
+            app.ReinvestigationRequest(note="Check the alibi.", provider="groq"),
+        )
+    )
+
+    assert selected_providers == ["openai", "groq"]
+    assert reinvestigation_updates[-1][-1] is case_file
+
+
 def test_run_investigation_displays_normalized_markdown_before_evidence_collection(
     monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
 ) -> None:

@@ -163,11 +163,10 @@ export GROQ_MODEL="your-supported-model"
 Groq's free tier is limited and may change; use it for local learning or
 manual demos, never test execution or a guaranteed service level.
 
-Never commit API keys, including in a `.env` file. The app's **LLM provider
-configuration** section lets you choose Gemini, OpenAI, or Groq and
-enter a masked key for the current browser session. A configured environment
-value takes precedence; the session value is used only when that setting is
-absent, and is never saved.
+Never commit API keys, including in a `.env` file. The app lets you choose
+Gemini, OpenAI, or Groq for the current run, but credentials and model settings
+are read only from the shell or local `.env` file. The UI never displays,
+stores, or edits those values.
 
 The app automatically loads an ignored local `.env` file without overriding
 shell values. Copy `.env.example` to `.env`, fill in only the provider you
@@ -220,10 +219,10 @@ python3 -m pytest -q
 ## Optional live-provider smoke test
 
 This is not part of automated verification. After configuring one supported
-provider in your ignored `.env`, shell environment, or the session-only UI
-field, launch `./scripts/run.sh`, submit a new fictional mystery, and confirm a
-proposal reaches the human review controls. Record only pass/fail and the
-provider; never commit credentials, raw provider output, or case data.
+provider in your ignored `.env` or shell environment, launch
+`./scripts/run.sh`, submit a new fictional mystery, and confirm a proposal
+reaches the human review controls. Record only pass/fail and the provider;
+never commit credentials, raw provider output, or case data.
 
 ## Latest verification record
 

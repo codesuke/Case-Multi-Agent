@@ -42,13 +42,13 @@ def default_provider() -> str:
 
 
 def _configured_llm(provider: str | None = None) -> EnvLLMClient:
-    return EnvLLMClient(provider=provider)
+    return EnvLLMClient() if provider is None else EnvLLMClient(provider=provider)
 
 
 @dataclass(frozen=True)
 class ReinvestigationRequest:
     note: str
-    provider: str
+    provider: str | None = None
 
 
 def prepare_reinvestigation_request(note: str, provider: str) -> ReinvestigationRequest:
@@ -331,7 +331,7 @@ def run_reinvestigation(
     as `_handle_review_decision` for Accept/Reject.
     """
     if isinstance(request, str):
-        request = ReinvestigationRequest(note=request, provider=default_provider())
+        request = ReinvestigationRequest(note=request)
     llm = _configured_llm(request.provider)
     transcript_lines = [transcript_markdown] if transcript_markdown else []
     if case_file is None:

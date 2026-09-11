@@ -46,8 +46,9 @@ The detailed pipeline is recorded in the implemented design specification.
 - Modules under `agents/` read and update only their assigned CaseFile section
   through their `run(case_file)` contract.
 - `llm_client.py` is the only layer allowed to import a concrete LLM provider.
-- `EnvLLMClient` resolves shell and local `.env` configuration before a
-  session-only UI fallback; it never writes credentials to process environment
+- `EnvLLMClient` resolves the provider selected in the UI against shell and
+  local `.env` configuration. The UI never receives credentials or model
+  settings, and the client never writes configuration to process environment
   state or investigation data.
 - Tests mock the LLM boundary rather than prompts or provider SDKs.
 

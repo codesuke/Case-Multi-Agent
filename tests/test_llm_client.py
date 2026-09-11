@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 import llm_client
-from llm_client import EnvLLMClient, LLMError, LLMRunMetadata, LLMRuntimeConfiguration
+from llm_client import EnvLLMClient, LLMError, LLMRunMetadata
 
 _EVIDENCE_SCHEMA = {
     "type": "object",
@@ -112,46 +112,6 @@ def test_run_metadata_reports_selected_provider_and_model_without_a_credential(
 
     assert metadata == LLMRunMetadata(provider="groq", model="llama-test")
     assert "test-only-key" not in metadata.display_text
-
-
-def test_environment_configuration_takes_precedence_over_session_configuration(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("OPENAI_API_KEY", "shell-key")
-    monkeypatch.setenv("OPENAI_MODEL", "shell-model")
-    keys_used: list[str] = []
-    monkeypatch.setattr(
-        llm_client,
-        "_call_openai",
-        lambda prompt, system, response_schema: (
-            keys_used.append(llm_client._required_api_key("OPENAI_API_KEY", "OpenAI"))
-            or '{"evidence": []}'
-        ),
-    )
-    client = EnvLLMClient(
-        runtime_configuration=LLMRuntimeConfiguration(
-            provider="openai", api_key="session-key", model="session-model"
-        )
-    )
-
-    assert client.run_metadata() == LLMRunMetadata("openai", "shell-model")
-    assert client.call_llm("Extract evidence.", "system prompt", {}) == {"evidence": []}
-    assert keys_used == ["shell-key"]
-    assert os.environ["OPENAI_API_KEY"] == "shell-key"
-
-
-def test_session_configuration_is_used_when_environment_configuration_is_absent(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_MODEL", raising=False)
-    client = EnvLLMClient(
-        runtime_configuration=LLMRuntimeConfiguration(
-            provider="openai", api_key="session-key", model="session-model"
-        )
-    )
-
-    assert client.run_metadata() == LLMRunMetadata("openai", "session-model")
 
 
 def test_load_local_environment_does_not_override_shell_value(
