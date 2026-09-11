@@ -2,7 +2,8 @@
 
 Agent code depends only on the `LLMClient` protocol below and never imports
 a provider SDK directly. `EnvLLMClient` is the only place that is allowed to
-do so, chosen at call time via the `LLM_PROVIDER` environment variable.
+do so, selected explicitly for a run or by the `LLM_PROVIDER` environment
+variable.
 """
 
 from __future__ import annotations
@@ -80,7 +81,7 @@ _OPENAI_COMPATIBLE_PROVIDERS = {
 
 
 class EnvLLMClient:
-    """`LLMClient` that dispatches to a provider chosen by `LLM_PROVIDER`.
+    """`LLMClient` that dispatches to an explicit provider or `LLM_PROVIDER`.
 
     Supported values: "gemini" (default), "openai", and "groq". Retries
     once with a stricter reformatting instruction when
