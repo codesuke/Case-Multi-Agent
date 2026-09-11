@@ -1,0 +1,8 @@
+gradio
+pydantic
+pytest
+google-generativeai
+openai
+python-dotenv
+pdf-inspector==1.19.0
+python-docx

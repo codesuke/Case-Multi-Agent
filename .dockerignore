@@ -1,0 +1,30 @@
+# Version control, local environments, and test/development-only material
+.git/
+.agents/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+tests/
+docs/
+scripts/
+
+# Never copy local credentials or machine-specific files into an image.
+.env
+.env.*
+!.env.example
+*.pem
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Documentation and repository-only assets are not required at runtime.
+README.md
+AGENTS.md
+Architecture.md
+CONTEXT.md
+assets/
