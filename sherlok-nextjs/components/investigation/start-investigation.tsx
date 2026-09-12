@@ -526,11 +526,11 @@ function Intro() {
             connect, and reason across the facts.
           </p>
         </div>
-        <ol className="mt-9 space-y-6 pl-16">
+        <ol className="mt-9 space-y-6">
           {steps.map(([title, description], index) => (
             <li
               key={title}
-              className="relative before:absolute before:left-5 before:top-5 before:h-[calc(100%+1.5rem)] before:w-px before:bg-[#b89b6e] last:before:hidden"
+              className="relative pl-16 before:absolute before:left-5 before:top-5 before:h-[calc(100%+1.5rem)] before:w-px before:bg-[#b89b6e] last:before:hidden"
             >
               <span
                 className={`absolute left-0 top-0 z-10 grid size-10 place-items-center rounded-full border text-lg font-semibold ${index === 0 ? "border-[#f4b941] bg-[#f4b941] text-[#24160e]" : "border-[#d8c4a0] bg-[#24160e] text-[#f8ebd2]"}`}
