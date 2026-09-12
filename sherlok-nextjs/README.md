@@ -20,6 +20,19 @@ pnpm dev
 Open [http://localhost:3000](http://localhost:3000). The current home page is
 still the generated scaffold.
 
+## Deploy with Dokploy
+
+Dokploy can build this directory directly from the included `Dockerfile`.
+Create an **Application** from this repository, set the build context to
+`sherlok-nextjs`, and expose container port `3000`. No start command or
+Docker Compose file is needed: the image builds the app and starts the
+standalone Next.js server itself.
+
+Set application secrets and any public runtime configuration in Dokploy's
+environment-variable settings rather than committing an `.env` file. The
+container already listens on `0.0.0.0:3000`; leave `PORT` unset unless your
+Dokploy configuration requires a different internal port.
+
 ## Read before implementation
 
 - [`design.md`](design.md) defines the visual system.

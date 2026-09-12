@@ -1,0 +1,22 @@
+# Build artifacts and local dependencies are recreated in the image.
+node_modules
+.next
+out
+coverage
+
+# Source-control and local tooling metadata are not needed at runtime.
+.git
+.gitignore
+.dockerignore
+AGENTS.md
+CLAUDE.md
+
+# Never send local secrets to Dokploy's build context.
+.env
+.env.*
+!.env.example
+
+# Editor, operating-system, and diagnostic files.
+.DS_Store
+*.log
+*.tsbuildinfo
