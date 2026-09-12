@@ -89,7 +89,7 @@ function Sidebar() {
             key={label}
             href={index === 0 ? "/case/overview" : "#"}
             aria-current={index === 0 ? "page" : undefined}
-            className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition ${index === 0 ? "border-l-2 border-[#f4b941] bg-[#5a3b18]/70 font-semibold text-[#f4b941]" : "text-[#f8ebd2] hover:bg-[#f8ebd2]/10"}`}
+            className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition ${index === 0 ? "bg-[#5a3b18]/70 font-semibold text-[#f4b941]" : "text-[#f8ebd2] hover:bg-[#f8ebd2]/10"}`}
           >
             <Icon className="size-5" strokeWidth={1.6} />
             {label}

@@ -223,7 +223,7 @@ function EvidenceNav() {
             key={label}
             href={href}
             aria-current={label === "Evidence" ? "page" : undefined}
-            className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition ${label === "Evidence" ? "border-l-2 border-[#f4b941] bg-[#5a3b18]/70 font-semibold text-[#f4b941]" : "text-[#f8ebd2] hover:bg-[#f8ebd2]/10"}`}
+            className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition ${label === "Evidence" ? "bg-[#5a3b18]/70 font-semibold text-[#f4b941]" : "text-[#f8ebd2] hover:bg-[#f8ebd2]/10"}`}
           >
             <Icon className="size-5" strokeWidth={1.6} />
             {label}
