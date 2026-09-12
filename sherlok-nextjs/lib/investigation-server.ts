@@ -14,6 +14,11 @@ export type InvestigationCommandResult = {
 };
 
 const PYTHON_API_URL_ENV = "SHERLOK_PYTHON_API_URL";
+const SERVICE_FAILURE = transportFailure(
+  "investigation_service",
+  "The investigation service is unavailable.",
+  "Wait a moment and try again.",
+);
 
 export async function startInvestigation(
   material: FormData,
@@ -33,10 +38,22 @@ export async function startInvestigation(
   if (failure) {
     return { body: failure, status: response.status };
   }
-  return {
-    body: unavailableBackendFailure(),
-    status: 502,
-  };
+  return { body: SERVICE_FAILURE, status: 502 };
+}
+
+export async function proxyInvestigationRequest(
+  investigationId: string,
+  suffix = "",
+  init?: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetch(
+      `${pythonApiUrl()}/v1/investigations/${encodeURIComponent(investigationId)}${suffix}`,
+      { cache: "no-store", ...init },
+    );
+  } catch {
+    return Response.json(SERVICE_FAILURE, { status: 503 });
+  }
 }
 
 function pythonApiUrl(): string {
@@ -53,12 +70,4 @@ async function safeJson(response: Response): Promise<unknown> {
   } catch {
     return null;
   }
-}
-
-function unavailableBackendFailure(): SafeTransportFailure {
-  return transportFailure(
-    "investigation_service",
-    "The investigation service is unavailable.",
-    "Wait a moment and try starting the investigation again.",
-  );
 }

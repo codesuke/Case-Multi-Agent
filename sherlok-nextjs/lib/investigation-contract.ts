@@ -47,3 +47,8 @@ export function transportFailure(
 ): SafeTransportFailure {
   return { detail: { stage, message, recovery_action: recoveryAction } };
 }
+
+export function safeFailureMessage(value: unknown, fallback: string): string {
+  const failure = asSafeTransportFailure(value);
+  return failure?.detail.message ?? fallback;
+}

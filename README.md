@@ -20,6 +20,31 @@ export GEMINI_API_KEY="your-key"
 
 Open the local URL printed by Gradio and submit a fictional mystery. Gemini is the default provider.
 
+## Next.js workspace
+
+The target workspace uses the Python API adapter and Next.js together. From
+the repository root, first install the pinned Python requirements and start
+the adapter:
+
+```bash
+./scripts/setup.sh
+./.venv/bin/uvicorn api:create_api --factory --host 127.0.0.1 --port 8000
+```
+
+Then, in `sherlok-nextjs/`, start the presentation layer in a second terminal:
+
+```bash
+pnpm install
+export SHERLOK_PYTHON_API_URL="http://127.0.0.1:8000"
+pnpm dev
+```
+
+The adapter URL is server-only configuration; do not use a `NEXT_PUBLIC_`
+variable. Keep provider credentials in the Python process's shell or ignored
+`.env` file. If the workspace cannot reach Python, confirm both processes are
+running and the URL matches. Recreate `.venv` with `./scripts/setup.sh` if a
+FastAPI dependency mismatch prevents the adapter from starting.
+
 On Windows Command Prompt:
 
 ```bat

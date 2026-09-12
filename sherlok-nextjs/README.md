@@ -9,19 +9,41 @@ Python remains responsible for case-material processing, agent orchestration,
 validation, case state, and LLM access. Next.js renders that state and makes
 the live multi-agent workflow understandable to a human reviewer.
 
-Status: scaffolded and designed; backend integration is planned but not yet
-implemented.
+Status: connected to the Python investigation adapter. The browser only calls
+same-origin Next.js routes; Python retains all Case File and provider state.
 
 ## Getting started
 
-Install dependencies with the pinned package manager, then start the frontend:
+From the repository root, create the pinned Python environment and start the
+investigation adapter in one terminal:
+
+```bash
+./scripts/setup.sh
+./.venv/bin/uvicorn api:create_api --factory --host 127.0.0.1 --port 8000
+```
+
+In this directory, install dependencies with the pinned package manager, set
+the non-secret adapter URL, then start the frontend in a second terminal:
 
 ```bash
 pnpm install
+export SHERLOK_PYTHON_API_URL="http://127.0.0.1:8000"
 pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to start an investigation.
+
+`SHERLOK_PYTHON_API_URL` is read only by Next.js server routes and must not be
+prefixed with `NEXT_PUBLIC_`. Provider credentials remain in the Python
+process's shell or ignored root `.env` file. A Python-process restart clears
+the demo's in-memory investigation IDs; open a new investigation afterward.
+Copy [`.env.local.example`](.env.local.example) to an ignored `.env.local` if
+you prefer local configuration over a shell export.
+
+If the workspace reports that the investigation service is unavailable, verify
+that the adapter is running on the configured URL. If FastAPI fails to start,
+recreate the isolated environment with `./scripts/setup.sh`; the pinned
+`requirements.txt` supplies the compatible FastAPI and Starlette set.
 
 ## Deploy with Dokploy
 
