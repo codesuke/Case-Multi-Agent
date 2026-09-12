@@ -43,7 +43,6 @@ export function LiveAgentWorkspace({ investigationId }: { investigationId: strin
     let source: EventSource | null = null;
     latestEventId.current = 0;
     streamRetries.current = 0;
-    setEvents([]);
     async function refresh(): Promise<Snapshot | null> {
       try {
         return await loadSnapshot();

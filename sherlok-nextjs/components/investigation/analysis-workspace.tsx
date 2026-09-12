@@ -2,7 +2,6 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  AlertTriangle,
   CheckCircle2,
   ChevronRight,
   CircleHelp,
@@ -21,7 +20,6 @@ import {
 import Link from "next/link";
 import { SherlokMark } from "@/components/investigation/sherlok-mark";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 
 type Status = "Supported" | "Unknown";
 type Claim = {

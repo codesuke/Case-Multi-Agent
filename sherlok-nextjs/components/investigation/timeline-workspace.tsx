@@ -3,11 +3,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle,
-  Check,
   CheckCircle2,
   ChevronRight,
   CircleHelp,
-  Clock3,
   FileText,
   FolderOpen,
   GitBranch,

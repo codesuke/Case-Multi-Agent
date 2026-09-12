@@ -14,7 +14,6 @@ import {
   Scale,
   Search,
   ShieldAlert,
-  Sparkles,
   Timer,
   Waypoints,
 } from "lucide-react";

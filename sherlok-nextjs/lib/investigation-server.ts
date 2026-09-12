@@ -56,6 +56,18 @@ export async function proxyInvestigationRequest(
   }
 }
 
+export async function proxyJsonCommand(
+  investigationId: string,
+  suffix: "/decision" | "/reinvestigation",
+  body: string,
+): Promise<Response> {
+  return proxyInvestigationRequest(investigationId, suffix, {
+    method: "POST",
+    body,
+    headers: { "content-type": "application/json" },
+  });
+}
+
 function pythonApiUrl(): string {
   const apiUrl = process.env[PYTHON_API_URL_ENV];
   if (!apiUrl) {
