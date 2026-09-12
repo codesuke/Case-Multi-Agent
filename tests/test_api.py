@@ -231,6 +231,13 @@ def test_openapi_document_is_the_versioned_transport_schema() -> None:
     assert "InvestigationSnapshot" in schema["components"]["schemas"]
     assert "text/event-stream" in schema["paths"]["/v1/investigations/{investigation_id}/events"]["get"]["responses"]["200"]["content"]
     assert "TransportFailure" in schema["components"]["schemas"]
+    assert "422" not in schema["paths"]["/v1/investigations"]["post"]["responses"]
+    assert (
+        schema["paths"]["/v1/investigations/{investigation_id}/events"]["get"]
+        ["responses"]["200"]["content"]["text/event-stream"]["schema"]["$ref"]
+        == "#/components/schemas/PublicInvestigationEvent"
+    )
+    assert "application/json" not in schema["paths"]["/v1/investigations/{investigation_id}/events"]["get"]["responses"]["200"]["content"]
 
 
 def test_invalid_transport_input_uses_the_safe_error_contract() -> None:

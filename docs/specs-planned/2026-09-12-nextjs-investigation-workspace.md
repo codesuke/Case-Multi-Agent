@@ -101,7 +101,7 @@ Browser -> Next.js upload and presentation adapter -> Python application interfa
 
 - [x] Slice 1: Define the versioned Python application interface and transport schema. Add behavior tests for start, snapshot, events, decision, and re-investigation.
 - [x] Slice 2: Add the in-memory investigation store and Python REST/SSE adapter. Add contract tests for ordering, recovery, safe failures, and source-reference integrity.
-- [ ] Slice 3: Add Next.js same-origin route handlers and a typed server adapter. Replace simulated Start Investigation behavior with the real command and safe validation display.
+- [x] Slice 3: Add Next.js same-origin route handlers and a typed server adapter. Replace simulated Start Investigation behavior with the real command and safe validation display.
 - [ ] Slice 4: Build the live Agent Workspace from snapshot and event projections, including parallel work, Skeptic revision, and failure states.
 - [ ] Slice 5: Connect Case Overview, Evidence, Timeline, Analysis, and Proposed Verdict views with shared evidence navigation and human decisions.
 - [ ] Slice 6: Add the critical browser journey, prove parity against the reference adapter, update local run documentation, then plan Gradio retirement separately.

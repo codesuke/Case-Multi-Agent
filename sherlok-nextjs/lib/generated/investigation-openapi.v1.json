@@ -1,0 +1,1225 @@
+{
+  "components": {
+    "schemas": {
+      "Body_start_investigation_v1_investigations_post": {
+        "properties": {
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "contentMediaType": "application/octet-stream",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files"
+          },
+          "pasted_material": {
+            "default": "",
+            "title": "Pasted Material",
+            "type": "string"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          }
+        },
+        "title": "Body_start_investigation_v1_investigations_post",
+        "type": "object"
+      },
+      "CaseFile": {
+        "description": "The shared, structured state for one investigation.\n\nEach agent reads the fields it needs and writes only to its own section;\nsee Architecture.md for the section-ownership contract.",
+        "properties": {
+          "canonical_material": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Material"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItem"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "human_notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Human Notes",
+            "type": "array"
+          },
+          "material_blocks": {
+            "items": {
+              "$ref": "#/components/schemas/CaseMaterialBlock"
+            },
+            "title": "Material Blocks",
+            "type": "array"
+          },
+          "material_warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Material Warnings",
+            "type": "array"
+          },
+          "mystery_text": {
+            "title": "Mystery Text",
+            "type": "string"
+          },
+          "revised_specialists": {
+            "items": {
+              "$ref": "#/components/schemas/Specialist"
+            },
+            "title": "Revised Specialists",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "skeptic_reviews": {
+            "items": {
+              "$ref": "#/components/schemas/SkepticReview"
+            },
+            "title": "Skeptic Reviews",
+            "type": "array"
+          },
+          "source_text": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Source Text",
+            "type": "object"
+          },
+          "suspect_profiles": {
+            "items": {
+              "$ref": "#/components/schemas/SuspectProfile"
+            },
+            "title": "Suspect Profiles",
+            "type": "array"
+          },
+          "timeline": {
+            "$ref": "#/components/schemas/Timeline"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mystery_text"
+        ],
+        "title": "CaseFile",
+        "type": "object"
+      },
+      "CaseMaterialBlock": {
+        "description": "One canonical piece of material with its source location.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CaseMaterialBlockKind"
+          },
+          "nesting": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Nesting",
+            "type": "integer"
+          },
+          "ordinal": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordinal"
+          },
+          "source_reference": {
+            "$ref": "#/components/schemas/SourceReference"
+          },
+          "table": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseMaterialTable"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "source_reference"
+        ],
+        "title": "CaseMaterialBlock",
+        "type": "object"
+      },
+      "CaseMaterialBlockKind": {
+        "description": "The meaningful structures the Curator retains.",
+        "enum": [
+          "section",
+          "paragraph",
+          "ordered_list_item",
+          "unordered_list_item",
+          "table"
+        ],
+        "title": "CaseMaterialBlockKind",
+        "type": "string"
+      },
+      "CaseMaterialTable": {
+        "description": "A Markdown table whose headers and rows remain independently visible.",
+        "properties": {
+          "cell_references": {
+            "default": [],
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/SourceReference"
+              },
+              "type": "array"
+            },
+            "title": "Cell References",
+            "type": "array"
+          },
+          "header_references": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            },
+            "title": "Header References",
+            "type": "array"
+          },
+          "headers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Headers",
+            "type": "array"
+          },
+          "is_uncertain": {
+            "default": false,
+            "title": "Is Uncertain",
+            "type": "boolean"
+          },
+          "row_references": {
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            },
+            "title": "Row References",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "headers",
+          "rows",
+          "row_references"
+        ],
+        "title": "CaseMaterialTable",
+        "type": "object"
+      },
+      "Claim": {
+        "description": "A single motive or opportunity statement.\n\nA `SUPPORTED` claim must cite one or more evidence IDs that exist in the\ncase file. An `UNKNOWN` claim marks the analysis as unresolved rather\nthan presenting a guess as fact.",
+        "properties": {
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClaimStatus"
+          }
+        },
+        "required": [
+          "statement",
+          "status"
+        ],
+        "title": "Claim",
+        "type": "object"
+      },
+      "ClaimStatus": {
+        "description": "Whether a specialist claim is backed by cited evidence or unresolved.",
+        "enum": [
+          "supported",
+          "unknown"
+        ],
+        "title": "ClaimStatus",
+        "type": "string"
+      },
+      "Conclusion": {
+        "description": "One ranked, evidence-cited explanation the Lead Detective proposes.\n\nRanks start at 1 and must be unique and consecutive across a verdict's\nconclusions, with 1 the most strongly supported.",
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "suspect": {
+            "title": "Suspect",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rank",
+          "suspect",
+          "explanation",
+          "evidence_ids"
+        ],
+        "title": "Conclusion",
+        "type": "object"
+      },
+      "DecisionRequest": {
+        "description": "One human decision for a verdict that awaits review.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/HumanDecision"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "DecisionRequest",
+        "type": "object"
+      },
+      "EvidenceClassification": {
+        "description": "Whether an evidence item is a recorded observation or a drawn inference.",
+        "enum": [
+          "observed_fact",
+          "inference"
+        ],
+        "title": "EvidenceClassification",
+        "type": "string"
+      },
+      "EvidenceItem": {
+        "description": "One ID-tagged fact or inference extracted from the mystery text.",
+        "properties": {
+          "classification": {
+            "$ref": "#/components/schemas/EvidenceClassification"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "source_references": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            },
+            "title": "Source References",
+            "type": "array"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "statement",
+          "classification"
+        ],
+        "title": "EvidenceItem",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HumanDecision": {
+        "description": "The review decisions a User may record for a proposed verdict.",
+        "enum": [
+          "accept",
+          "reject"
+        ],
+        "title": "HumanDecision",
+        "type": "string"
+      },
+      "InvestigationSnapshot": {
+        "description": "The displayable projection of one case file at its current state.",
+        "properties": {
+          "case_file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseFile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "investigation_id": {
+            "title": "Investigation Id",
+            "type": "string"
+          },
+          "is_complete": {
+            "title": "Is Complete",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "investigation_id",
+          "is_complete"
+        ],
+        "title": "InvestigationSnapshot",
+        "type": "object"
+      },
+      "InvestigationStatus": {
+        "description": "Public workflow statuses understood by the investigation workspace.",
+        "enum": [
+          "queued",
+          "working",
+          "completed",
+          "revising",
+          "failed",
+          "awaiting_review"
+        ],
+        "title": "InvestigationStatus",
+        "type": "string"
+      },
+      "PublicInvestigationEvent": {
+        "description": "One safe, ordered event that a presentation adapter can expose.",
+        "properties": {
+          "event_id": {
+            "minimum": 1.0,
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "investigation_id": {
+            "title": "Investigation Id",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "specialist": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Specialist"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvestigationStatus"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "investigation_id",
+          "event_type",
+          "stage",
+          "status",
+          "timestamp"
+        ],
+        "title": "PublicInvestigationEvent",
+        "type": "object"
+      },
+      "ReinvestigationRequest": {
+        "description": "Guidance and provider selection for one re-investigation.",
+        "properties": {
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "title": "ReinvestigationRequest",
+        "type": "object"
+      },
+      "SkepticFinding": {
+        "description": "One Skeptic challenge naming the affected specialist and claim.",
+        "properties": {
+          "claim": {
+            "title": "Claim",
+            "type": "string"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SkepticFindingKind"
+          },
+          "specialist": {
+            "$ref": "#/components/schemas/Specialist"
+          }
+        },
+        "required": [
+          "specialist",
+          "claim",
+          "kind",
+          "explanation"
+        ],
+        "title": "SkepticFinding",
+        "type": "object"
+      },
+      "SkepticFindingKind": {
+        "description": "The kind of weakness a Skeptic finding identifies in a claim.",
+        "enum": [
+          "missing_citation",
+          "nonexistent_evidence_id",
+          "unsupported_reasoning"
+        ],
+        "title": "SkepticFindingKind",
+        "type": "string"
+      },
+      "SkepticReview": {
+        "description": "One inspectable Skeptic review round and any findings it raised.",
+        "properties": {
+          "findings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SkepticFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/SkepticReviewOutcome"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "title": "SkepticReview",
+        "type": "object"
+      },
+      "SkepticReviewOutcome": {
+        "description": "The result of one Skeptic review round.",
+        "enum": [
+          "approved",
+          "revision_requested",
+          "exhausted"
+        ],
+        "title": "SkepticReviewOutcome",
+        "type": "string"
+      },
+      "SourceReference": {
+        "description": "A UI-safe, case-local location in supplied material.",
+        "properties": {
+          "block_id": {
+            "title": "Block Id",
+            "type": "string"
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading"
+          },
+          "list_position": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "List Position"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "paragraph": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paragraph"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "table_column": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Column"
+          },
+          "table_row": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Row"
+          }
+        },
+        "required": [
+          "source_name",
+          "block_id"
+        ],
+        "title": "SourceReference",
+        "type": "object"
+      },
+      "Specialist": {
+        "description": "A specialist agent a Skeptic finding or revision round targets.",
+        "enum": [
+          "suspect_analyst",
+          "timeline_reconciler"
+        ],
+        "title": "Specialist",
+        "type": "string"
+      },
+      "StartedInvestigation": {
+        "description": "The stable handle returned after accepted case material starts a run.",
+        "properties": {
+          "investigation_id": {
+            "title": "Investigation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "investigation_id"
+        ],
+        "title": "StartedInvestigation",
+        "type": "object"
+      },
+      "SuspectProfile": {
+        "description": "The Suspect Analyst's motive/opportunity profile for one suspect.",
+        "properties": {
+          "motive": {
+            "items": {
+              "$ref": "#/components/schemas/Claim"
+            },
+            "title": "Motive",
+            "type": "array"
+          },
+          "opportunity": {
+            "items": {
+              "$ref": "#/components/schemas/Claim"
+            },
+            "title": "Opportunity",
+            "type": "array"
+          },
+          "suspect": {
+            "title": "Suspect",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suspect",
+          "motive",
+          "opportunity"
+        ],
+        "title": "SuspectProfile",
+        "type": "object"
+      },
+      "Timeline": {
+        "description": "The Timeline Reconciler's ordered events and unresolved issues.",
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          }
+        },
+        "title": "Timeline",
+        "type": "object"
+      },
+      "TimelineEvent": {
+        "description": "An event placed in time, or explicitly left unordered.",
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClaimStatus"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          }
+        },
+        "required": [
+          "statement",
+          "time",
+          "order",
+          "status",
+          "evidence_ids"
+        ],
+        "title": "TimelineEvent",
+        "type": "object"
+      },
+      "TimelineIssue": {
+        "description": "An evidence-cited gap or contradiction in the timeline.",
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TimelineIssueKind"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "statement",
+          "evidence_ids"
+        ],
+        "title": "TimelineIssue",
+        "type": "object"
+      },
+      "TimelineIssueKind": {
+        "description": "A missing link or a conflict exposed while reconciling events.",
+        "enum": [
+          "gap",
+          "contradiction"
+        ],
+        "title": "TimelineIssueKind",
+        "type": "string"
+      },
+      "TransportError": {
+        "description": "A safe error that identifies the failed stage and a recovery action.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "recovery_action": {
+            "title": "Recovery Action",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "message",
+          "recovery_action"
+        ],
+        "title": "TransportError",
+        "type": "object"
+      },
+      "TransportFailure": {
+        "description": "The documented response envelope for all safe transport failures.",
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/TransportError"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "TransportFailure",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "Verdict": {
+        "description": "The Lead Detective's ranked, evidence-cited proposal.\n\nThis is a proposal only: storing it on the case file does not mean a\nhuman has reviewed or accepted it. `limitations` names any material\nunresolved Skeptic finding or notable uncertainty instead of hiding it.\n`review_status` starts `AWAITING_REVIEW` and is only ever changed by\n`CaseFile.accept_verdict`/`reject_verdict`/`request_reinvestigation`,\nwhich never touch the conclusions, confidence, or limitations recorded\nhere.",
+        "properties": {
+          "conclusions": {
+            "items": {
+              "$ref": "#/components/schemas/Conclusion"
+            },
+            "title": "Conclusions",
+            "type": "array"
+          },
+          "confidence": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "integer"
+          },
+          "limitations": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/VerdictReviewStatus",
+            "default": "awaiting_review"
+          }
+        },
+        "required": [
+          "conclusions",
+          "confidence"
+        ],
+        "title": "Verdict",
+        "type": "object"
+      },
+      "VerdictReviewStatus": {
+        "description": "Whether a proposed verdict still awaits a human decision.",
+        "enum": [
+          "awaiting_review",
+          "accepted",
+          "rejected",
+          "reinvestigation_requested"
+        ],
+        "title": "VerdictReviewStatus",
+        "type": "string"
+      }
+    }
+  },
+  "info": {
+    "title": "Sherlok Investigation API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/investigations": {
+      "post": {
+        "operationId": "start_investigation_v1_investigations_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_start_investigation_v1_investigations_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedInvestigation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransportFailure"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Start Investigation"
+      }
+    },
+    "/v1/investigations/{investigation_id}": {
+      "get": {
+        "operationId": "read_snapshot_v1_investigations__investigation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "investigation_id",
+            "required": true,
+            "schema": {
+              "title": "Investigation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransportFailure"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read Snapshot"
+      }
+    },
+    "/v1/investigations/{investigation_id}/decision": {
+      "post": {
+        "operationId": "record_decision_v1_investigations__investigation_id__decision_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "investigation_id",
+            "required": true,
+            "schema": {
+              "title": "Investigation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransportFailure"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Record Decision"
+      }
+    },
+    "/v1/investigations/{investigation_id}/events": {
+      "get": {
+        "operationId": "stream_events_v1_investigations__investigation_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "investigation_id",
+            "required": true,
+            "schema": {
+              "title": "Investigation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after_event_id",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "After Event Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicInvestigationEvent"
+                }
+              }
+            },
+            "description": "Ordered public investigation events."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransportFailure"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Stream Events"
+      }
+    },
+    "/v1/investigations/{investigation_id}/reinvestigation": {
+      "post": {
+        "operationId": "request_reinvestigation_v1_investigations__investigation_id__reinvestigation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "investigation_id",
+            "required": true,
+            "schema": {
+              "title": "Investigation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReinvestigationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransportFailure"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Request Reinvestigation"
+      }
+    }
+  }
+}

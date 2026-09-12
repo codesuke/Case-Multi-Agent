@@ -1,23 +1,577 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, FileText, LoaderCircle, ShieldCheck, Trash2, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  FileText,
+  LoaderCircle,
+  Paperclip,
+  Play,
+  Settings2,
+  ShieldCheck,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  asSafeTransportFailure,
+  asStartedInvestigation,
+} from "@/lib/investigation-contract";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-const supported = ["txt", "md", "docx", "pdf"];
-type Source = { id: string; name: string; kind: string; warning?: string };
+const supportedExtensions = ["txt", "md", "docx", "pdf"];
+const providers = { gemini: "Gemini", openai: "OpenAI", groq: "Groq" } as const;
+
+type Provider = keyof typeof providers;
+type Source = { file: File; id: string; name: string; kind: string };
+type SubmissionError = { message: string; recoveryAction: string };
 
 export function StartInvestigation() {
-  const [text, setText] = useState(""); const [files, setFiles] = useState<Source[]>([]); const [rejected, setRejected] = useState<string[]>([]); const [provider, setProvider] = useState("gemini"); const [starting, setStarting] = useState(false); const picker = useRef<HTMLInputElement>(null); const router = useRouter();
+  const [text, setText] = useState("");
+  const [files, setFiles] = useState<Source[]>([]);
+  const [rejectedFiles, setRejectedFiles] = useState<Source[]>([]);
+  const [provider, setProvider] = useState<Provider>("gemini");
+  const [starting, setStarting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<SubmissionError | null>(
+    null,
+  );
+  const picker = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   const ready = Boolean(text.trim() || files.length);
-  function addFiles(items: FileList | null) { if (!items || starting) return; const all = Array.from(items); setFiles((previous) => [...previous, ...all.filter((file) => supported.includes(file.name.split(".").pop()?.toLowerCase() ?? "")).map((file) => ({ id: `${file.name}-${file.lastModified}`, name: file.name, kind: file.name.split(".").pop()?.toUpperCase() ?? "FILE", warning: file.type === "application/pdf" ? "Text-based PDF required" : undefined }))]); setRejected(all.filter((file) => !supported.includes(file.name.split(".").pop()?.toLowerCase() ?? "")).map((file) => file.name)); }
-  function begin() { if (!ready) return; setStarting(true); window.setTimeout(() => router.push("/agent-workspace"), 2400); }
-  return <main className="relative min-h-[100dvh] overflow-hidden bg-[#24160e] p-4 text-[#f8ebd2] sm:p-6"><div className="paper-noise pointer-events-none fixed inset-0" /><div className="relative mx-auto grid min-h-[calc(100dvh-2rem)] max-w-[1450px] overflow-hidden rounded-xl border border-[#745022]/80 bg-[#382315] shadow-[0_24px_70px_rgba(14,7,3,.35)] lg:grid-cols-[minmax(280px,.8fr)_minmax(0,1.55fr)]"><Intro /><section className="bg-[#fbf2de] p-5 text-[#1e2831] sm:p-8 lg:p-10"><div className="mx-auto max-w-3xl"><p className="eyebrow text-[#745022]">New investigation</p><h1 className="mt-2 font-serif text-4xl font-semibold tracking-tight text-[#24160e] sm:text-5xl">Build the case file.</h1><p className="mt-3 max-w-xl text-[15px] leading-6 text-[#5c5145]">Give the team the participant materials for a fictional mystery. Paste text, add files, or use both.</p><div className="mt-8 space-y-6"><div><label className="mb-2 block text-sm font-bold text-[#24160e]" htmlFor="case-material">Paste case material</label><Textarea id="case-material" disabled={starting} value={text} onChange={(event) => setText(event.target.value)} placeholder="Paste the case brief, witness statements, and other participant material here…" /><p className="mt-2 text-xs text-[#5c5145]">Pasted text and files can be investigated together.</p></div><div><div className="mb-2 flex items-baseline justify-between gap-4"><label className="text-sm font-bold text-[#24160e]">Add case files</label><span className="text-xs text-[#5c5145]">TXT, MD, DOCX, PDF</span></div><input ref={picker} className="sr-only" type="file" multiple accept=".txt,.md,.docx,.pdf" onChange={(event) => { addFiles(event.target.files); event.target.value = ""; }} /><button type="button" disabled={starting} onClick={() => picker.current?.click()} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); addFiles(event.dataTransfer.files); }} className="group flex min-h-36 w-full flex-col items-center justify-center rounded-lg border border-dashed border-[#b89b6e] bg-[#f4e8d0]/55 px-5 text-center transition hover:border-[#18afa3] hover:bg-[#d5f0e8]/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18afa3] disabled:opacity-55"><span className="mb-3 rounded-full bg-[#24160e] p-3 text-[#f4b941] transition group-hover:-translate-y-0.5"><Upload className="size-5" /></span><span className="text-sm font-bold text-[#24160e]">Choose files or drop them here</span><span className="mt-1 text-xs text-[#5c5145]">Image-only and scanned PDFs need OCR and cannot be processed.</span></button></div><AnimatePresence initial={false}>{(files.length > 0 || rejected.length > 0) && <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-2" aria-live="polite">{files.map((file) => <motion.div layout key={file.id} className="flex items-center gap-3 rounded-lg border border-[#d8c4a0] bg-[#fff8e9] p-3"><FileText className="size-5 shrink-0 text-[#745022]" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-[#24160e]">{file.name}</p><p className="mt-0.5 text-xs text-[#5c5145]"><b className="text-[#006b54]">Ready</b> · {file.kind}{file.warning ? ` · ${file.warning}` : ""}</p></div><button type="button" onClick={() => setFiles((items) => items.filter((item) => item.id !== file.id))} disabled={starting} className="rounded p-2 text-[#745022] hover:bg-[#f6deaa]" aria-label={`Remove ${file.name}`}><Trash2 className="size-4" /></button></motion.div>)}{rejected.map((name) => <div key={name} className="flex gap-3 rounded-lg border border-[#b3261e]/30 bg-[#eedfc2] p-3 text-sm text-[#782019]"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><p><b>{name}</b> can’t be used. Add a plain-text, Markdown, DOCX, or text-based PDF version.</p></div>)}</motion.div>}</AnimatePresence><div className="rounded-lg border border-[#745022] bg-[#24160e] px-4"><Accordion type="single" collapsible><AccordionItem value="settings" className="border-0"><AccordionTrigger>Run settings <span className="ml-auto mr-2 text-xs font-normal text-[#d8c4a0]">{provider === "gemini" ? "Gemini" : provider === "openai" ? "OpenAI" : "Groq"}</span></AccordionTrigger><AccordionContent><label className="mb-2 block text-xs font-bold uppercase tracking-[.08em] text-[#d8c4a0]">Investigation provider</label><Select value={provider} onValueChange={setProvider} disabled={starting}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="gemini">Gemini</SelectItem><SelectItem value="openai">OpenAI</SelectItem><SelectItem value="groq">Groq</SelectItem></SelectContent></Select></AccordionContent></AccordionItem></Accordion></div></div><div className="mt-8 border-t border-[#d8c4a0] pt-5"><div className="mb-4 flex gap-3 rounded-lg bg-[#eedfc2] p-3 text-sm leading-5 text-[#5c5145]"><ShieldCheck className="mt-0.5 size-5 shrink-0 text-[#006b54]" /><p>Only supplied participant material is investigated. Keep facilitator-only solutions out of the case file.</p></div>{!ready && <p className="mb-3 text-sm text-[#745022]">Add usable material to begin.</p>}<Button className="w-full sm:w-auto" disabled={!ready || starting} onClick={begin}>{starting ? <><LoaderCircle className="size-4 animate-spin" />Preparing case file…</> : "Start investigation"}</Button>{starting && <div className="mt-3 flex items-center gap-3 text-sm text-[#5c5145]" role="status"><span className="h-1.5 w-32 overflow-hidden rounded bg-[#d8c4a0]"><motion.span className="block h-full bg-[#18afa3]" initial={{ x: "-100%" }} animate={{ x: "0%" }} transition={{ duration: 2.2 }} /></span>Normalizing supplied material</div>}</div></div></section></div></main>;
+
+  function addFiles(items: FileList | null) {
+    if (!items || starting) return;
+
+    const selected = Array.from(items).map(toSource);
+    const accepted = selected.filter((file) =>
+      supportedExtensions.includes(file.kind.toLowerCase()),
+    );
+    const rejected = selected.filter(
+      (file) => !supportedExtensions.includes(file.kind.toLowerCase()),
+    );
+
+    setFiles((previous) => [...previous, ...accepted]);
+    setRejectedFiles((previous) => [...previous, ...rejected]);
+  }
+
+  async function begin() {
+    if (!ready) return;
+    setStarting(true);
+    setSubmissionError(null);
+
+    const material = new FormData();
+    material.set("pasted_material", text);
+    material.set("provider", provider);
+    files.forEach(({ file }) => material.append("files", file, file.name));
+
+    try {
+      const response = await fetch("/api/investigations", {
+        method: "POST",
+        body: material,
+      });
+      const result: unknown = await response.json();
+      const started = asStartedInvestigation(result);
+      if (response.ok && started) {
+        router.push(
+          `/agent-workspace?investigation_id=${encodeURIComponent(started.investigation_id)}`,
+        );
+        return;
+      }
+      setSubmissionError(safeSubmissionError(result));
+    } catch {
+      setSubmissionError({
+        message: "The investigation could not be started.",
+        recoveryAction: "Check your connection and try again.",
+      });
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  return (
+    <main className="relative min-h-[100dvh] overflow-hidden bg-[#24160e] text-[#f8ebd2]">
+      <div className="paper-noise pointer-events-none fixed inset-0" />
+      <div className="relative grid min-h-[100dvh] lg:grid-cols-[23rem_minmax(0,1fr)]">
+        <Intro />
+        <section className="bg-[#2b1a10] p-3 sm:p-5 lg:py-8 lg:pr-8 lg:pl-0">
+          <div className="min-h-full rounded-xl border border-[#d8c4a0] bg-[#fbf2de] p-3 text-[#1e2831] shadow-[0_18px_44px_rgba(14,7,3,.24)] sm:p-5 lg:p-5 xl:p-6">
+            <div className="grid gap-4">
+              <MaterialPanel
+                text={text}
+                starting={starting}
+                onTextChange={setText}
+              />
+              <FilesPanel
+                files={files}
+                rejectedFiles={rejectedFiles}
+                picker={picker}
+                starting={starting}
+                onAddFiles={addFiles}
+                onRemoveFile={(id) =>
+                  setFiles((items) => items.filter((item) => item.id !== id))
+                }
+                onRemoveRejected={(id) =>
+                  setRejectedFiles((items) =>
+                    items.filter((item) => item.id !== id),
+                  )
+                }
+              />
+              <SettingsPanel
+                provider={provider}
+                starting={starting}
+                onProviderChange={setProvider}
+              />
+              <ActionPanel
+                ready={ready}
+                starting={starting}
+                submissionError={submissionError}
+                onStart={begin}
+              />
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }
 
-function Intro() { const phases = ["Prepare", "Collect", "Analyze", "Challenge", "Review"]; return <aside className="relative flex flex-col justify-between overflow-hidden p-7 sm:p-10"><div className="absolute inset-0 opacity-20 [background-image:radial-gradient(#f4b941_.75px,transparent_.75px)] [background-size:16px_16px]" /><div className="relative"><div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-lg border border-[#f4b941]/60 font-serif text-xl text-[#f4b941]">S</span><span className="font-serif text-2xl font-semibold tracking-wide">Sherlok</span></div><p className="eyebrow mt-14 text-[#f4b941]">A considered beginning</p><h2 className="mt-3 max-w-sm font-serif text-4xl font-semibold leading-[1.05] text-[#f8ebd2]">Start an investigation.</h2><p className="mt-5 max-w-sm text-[15px] leading-6 text-[#d8c4a0]">Sherlok separates evidence, specialist analysis, challenge, and human review—so the reasoning stays visible.</p><ol className="mt-10 space-y-4 border-l border-[#745022] pl-5">{["Add material", "Watch agents", "Review proposal"].map((step, index) => <li key={step} className="relative text-sm text-[#d8c4a0]"><span className="absolute -left-[29px] grid size-4 place-items-center rounded-full border border-[#f4b941] bg-[#382315] text-[9px] text-[#f4b941]">{index + 1}</span><b className="block text-[#f8ebd2]">{step}</b>{index === 0 && "Begin with participant-facing case material."}</li>)}</ol></div><div className="relative mt-12 border-t border-[#745022] pt-5"><p className="eyebrow text-[#f4b941]">Investigation path</p><div className="mt-3 flex flex-wrap gap-x-2 gap-y-2">{phases.map((phase, index) => <span key={phase} className="flex items-center gap-2 text-xs text-[#d8c4a0]"><span className={index === 0 ? "size-2 rounded-full bg-[#18afa3]" : "size-2 rounded-full border border-[#b89b6e]"} />{phase}</span>)}</div></div></aside>; }
+function MaterialPanel({
+  text,
+  starting,
+  onTextChange,
+}: {
+  text: string;
+  starting: boolean;
+  onTextChange: (value: string) => void;
+}) {
+  return (
+    <section
+      className="rounded-lg border border-[#d8c4a0] bg-[#f7ead3]/70 p-4 sm:p-5"
+      aria-labelledby="paste-material-heading"
+    >
+      <PanelHeading
+        icon={<FileText />}
+        id="paste-material-heading"
+        title="Paste case material"
+        meta="Add a summary or key questions (optional)"
+      />
+      <label className="sr-only" htmlFor="case-material">
+        Paste case material
+      </label>
+      <Textarea
+        id="case-material"
+        className="mt-4 min-h-32 resize-y border-[#d8c4a0] bg-[#fff9ed] text-[#1e2831] placeholder:text-[#746b60] focus:border-[#18afa3] focus:ring-[#18afa3]/25 lg:min-h-36"
+        disabled={starting}
+        value={text}
+        onChange={(event) => onTextChange(event.target.value)}
+        placeholder="Paste case notes, documents, or questions here…"
+      />
+      <p className="mt-2 text-xs leading-5 text-[#5c5145]">
+        Pasted text and files can be investigated together.
+      </p>
+    </section>
+  );
+}
+
+function FilesPanel({
+  files,
+  rejectedFiles,
+  picker,
+  starting,
+  onAddFiles,
+  onRemoveFile,
+  onRemoveRejected,
+}: {
+  files: Source[];
+  rejectedFiles: Source[];
+  picker: React.RefObject<HTMLInputElement | null>;
+  starting: boolean;
+  onAddFiles: (items: FileList | null) => void;
+  onRemoveFile: (id: string) => void;
+  onRemoveRejected: (id: string) => void;
+}) {
+  return (
+    <section
+      className="rounded-lg border border-[#d8c4a0] bg-[#f7ead3]/70 p-4 sm:p-5"
+      aria-labelledby="add-files-heading"
+    >
+      <PanelHeading
+        icon={<Paperclip />}
+        id="add-files-heading"
+        title="Add case files"
+        meta="Supported formats: PDF, DOCX, MD, TXT"
+      />
+      <input
+        ref={picker}
+        className="sr-only"
+        type="file"
+        multiple
+        accept=".txt,.md,.docx,.pdf"
+        onChange={(event) => {
+          onAddFiles(event.target.files);
+          event.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        disabled={starting}
+        onClick={() => picker.current?.click()}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          onAddFiles(event.dataTransfer.files);
+        }}
+        className="group mt-4 flex min-h-28 w-full flex-col items-center justify-center rounded-lg border border-dashed border-[#a79476] bg-[#fff9ed]/60 px-5 text-center transition hover:border-[#18afa3] hover:bg-[#d5f0e8]/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18afa3] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <Upload
+          className="mb-2 size-6 text-[#24160e] transition-transform group-hover:-translate-y-0.5"
+          strokeWidth={1.8}
+        />
+        <span className="text-sm font-semibold text-[#24160e]">
+          Drag and drop files here
+        </span>
+        <span className="mt-1 text-sm text-[#008b82]">or click to browse</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {(files.length > 0 || rejectedFiles.length > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="mt-3 space-y-2"
+            aria-live="polite"
+          >
+            {files.map((file) => (
+              <SourceRow
+                file={file}
+                key={file.id}
+                starting={starting}
+                onRemove={onRemoveFile}
+              />
+            ))}
+            {rejectedFiles.map((file) => (
+              <RejectedSourceRow
+                file={file}
+                key={file.id}
+                onRemove={onRemoveRejected}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+function SettingsPanel({
+  provider,
+  starting,
+  onProviderChange,
+}: {
+  provider: Provider;
+  starting: boolean;
+  onProviderChange: (provider: Provider) => void;
+}) {
+  return (
+    <section
+      className="rounded-lg border border-[#d8c4a0] bg-[#f7ead3]/70 px-4 sm:px-5"
+      aria-labelledby="run-settings-heading"
+    >
+      <Accordion type="single" collapsible>
+        <AccordionItem value="settings" className="border-0">
+          <AccordionTrigger className="py-4 font-serif text-xl font-semibold text-[#1e2831] hover:no-underline">
+            <span className="flex items-center gap-3">
+              <Settings2 className="size-5" strokeWidth={1.8} />
+              <span id="run-settings-heading">Run settings</span>
+            </span>
+            <span className="ml-auto mr-3 font-sans text-sm font-normal text-[#5c5145]">
+              {providers[provider]}
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="text-[#5c5145]">
+            <div className="grid gap-4 border-t border-[#d8c4a0] py-4 md:grid-cols-[minmax(0,390px)_1fr] md:items-end md:gap-12">
+              <label className="block text-sm font-medium text-[#5c5145]">
+                Investigation provider
+                <Select
+                  value={provider}
+                  onValueChange={(value) => onProviderChange(value as Provider)}
+                  disabled={starting}
+                >
+                  <SelectTrigger className="mt-2 border-[#d8c4a0] bg-[#fff9ed] text-[#1e2831] focus:ring-[#18afa3]/30">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-[#745022] bg-[#382315]">
+                    <SelectItem value="gemini">Gemini</SelectItem>
+                    <SelectItem value="openai">OpenAI</SelectItem>
+                    <SelectItem value="groq">Groq</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+              <div className="flex gap-3 border-t border-[#d8c4a0] pt-4 text-xs leading-5 md:border-l md:border-t-0 md:pl-8 md:pt-0">
+                <ShieldCheck
+                  className="mt-0.5 size-5 shrink-0 text-[#24160e]"
+                  strokeWidth={1.8}
+                />
+                <p>
+                  Only supplied participant material is investigated. Image-only
+                  and scanned PDFs need OCR and cannot be processed after
+                  curation.
+                </p>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </section>
+  );
+}
+
+function ActionPanel({
+  ready,
+  starting,
+  submissionError,
+  onStart,
+}: {
+  ready: boolean;
+  starting: boolean;
+  submissionError: SubmissionError | null;
+  onStart: () => void;
+}) {
+  return (
+    <section aria-label="Start investigation">
+      {!ready && (
+        <p className="mb-3 text-sm text-[#745022]">
+          Add usable material to begin.
+        </p>
+      )}
+      <Button
+        className="w-full text-base"
+        disabled={!ready || starting}
+        onClick={onStart}
+      >
+        {starting ? (
+          <>
+            <LoaderCircle className="size-4 animate-spin" />
+            Preparing case file…
+          </>
+        ) : (
+          <>
+            <Play className="size-4" fill="currentColor" />
+            Start investigation
+          </>
+        )}
+      </Button>
+      {starting && (
+        <div
+          className="mt-3 flex items-center gap-3 text-sm text-[#5c5145]"
+          role="status"
+        >
+          <LoaderCircle className="size-4 animate-spin text-[#008b82]" />
+          Sending supplied material to case-file curation…
+        </div>
+      )}
+      {submissionError && (
+        <div
+          className="mt-3 flex gap-3 rounded-lg border border-[#d99a48] bg-[#f6e0bc] px-4 py-3 text-sm text-[#783f14]"
+          role="alert"
+        >
+          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+          <p>
+            <b className="block">{submissionError.message}</b>
+            {submissionError.recoveryAction}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SourceRow({
+  file,
+  starting,
+  onRemove,
+}: {
+  file: Source;
+  starting: boolean;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <motion.div
+      layout
+      className="flex items-center gap-3 rounded-lg border border-[#d8c4a0] bg-[#fff9ed] px-4 py-2.5"
+    >
+      <FileText className="size-6 shrink-0 text-[#24160e]" strokeWidth={1.7} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-[#1e2831]">
+          {file.name}
+        </p>
+        <p className="mt-0.5 text-xs text-[#5c5145]">{file.kind}</p>
+      </div>
+      <span className="hidden items-center gap-2 text-sm text-[#008b82] sm:flex">
+        <Check className="size-4 rounded-full bg-[#008b82] p-0.5 text-[#fff9ed]" />
+        Added
+      </span>
+      <button
+        type="button"
+        onClick={() => onRemove(file.id)}
+        disabled={starting}
+        className="rounded p-2 text-[#745022] hover:bg-[#f6deaa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18afa3]"
+        aria-label={`Remove ${file.name}`}
+      >
+        <Trash2 className="size-4" />
+      </button>
+    </motion.div>
+  );
+}
+
+function RejectedSourceRow({
+  file,
+  onRemove,
+}: {
+  file: Source;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="flex gap-3 rounded-lg border border-[#d99a48] bg-[#f6e0bc] px-4 py-3 text-sm text-[#783f14]">
+      <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+      <p className="flex-1">
+        <b>{file.name}</b> can’t be used. Add a plain-text, Markdown, DOCX, or
+        text-based PDF version.
+      </p>
+      <button
+        type="button"
+        className="self-start rounded p-1 hover:bg-[#f0ce94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18afa3]"
+        aria-label={`Dismiss ${file.name} error`}
+        onClick={() => onRemove(file.id)}
+      >
+        <Trash2 className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+function PanelHeading({
+  icon,
+  id,
+  title,
+  meta,
+}: {
+  icon: React.ReactNode;
+  id: string;
+  title: string;
+  meta: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="mt-0.5 text-[#24160e]">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-5">
+          <h2
+            className="font-serif text-[1.4rem] font-semibold leading-tight text-[#1e2831]"
+            id={id}
+          >
+            {title}
+          </h2>
+          <p className="text-sm text-[#746b60]">{meta}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Intro() {
+  const steps = [
+    ["Add material", "Paste notes or upload files"],
+    ["Watch agents", "See the investigation progress"],
+    ["Review proposal", "Get a clear, evidence-based answer"],
+  ];
+  return (
+    <aside className="relative overflow-hidden bg-[#24160e] px-8 py-9 sm:px-12 sm:py-10 lg:px-12 lg:py-9">
+      <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(#f4b941_.75px,transparent_.75px)] [background-size:16px_16px]" />
+      <div className="relative flex min-h-full flex-col">
+        <div>
+          <span className="font-serif text-5xl font-semibold leading-none tracking-tight text-[#f8ebd2]">
+            Sherlok
+          </span>
+          <p className="mt-2 text-sm text-[#d8c4a0]">
+            AI agents for deeper answers
+          </p>
+        </div>
+        <div className="my-8 h-px bg-[#745022]" />
+        <div>
+          <h1 className="max-w-[290px] font-serif text-5xl font-semibold leading-[.98] tracking-tight text-[#f8ebd2]">
+            Start an investigation
+          </h1>
+          <p className="mt-5 max-w-[285px] text-base leading-6 text-[#d8c4a0]">
+            Give Sherlok your case material and let a team of AI agents analyze,
+            connect, and reason across the facts.
+          </p>
+        </div>
+        <ol className="mt-9 space-y-6 border-l border-[#b89b6e] pl-11">
+          {steps.map(([title, description], index) => (
+            <li key={title} className="relative">
+              <span
+                className={`absolute -left-[3.65rem] top-0 grid size-10 place-items-center rounded-full border text-lg font-semibold ${index === 0 ? "border-[#f4b941] bg-[#f4b941] text-[#24160e]" : "border-[#d8c4a0] bg-[#24160e] text-[#f8ebd2]"}`}
+              >
+                {index + 1}
+              </span>
+              <p
+                className={`font-serif text-lg ${index === 0 ? "text-[#f4b941]" : "text-[#f8ebd2]"}`}
+              >
+                {title}
+              </p>
+              <p className="mt-0.5 text-sm text-[#d8c4a0]">{description}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-auto hidden border-t border-[#745022] pt-7 lg:block">
+          <div className="rounded-lg border border-[#745022] bg-[#382315]/45 p-5 font-serif text-xl italic leading-7 text-[#d8c4a0]">
+            Different perspectives.
+            <br />A clearer picture.
+            <div className="mt-4 h-0.5 w-12 bg-[#f4b941]" />
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function toSource(file: File): Source {
+  const kind = file.name.split(".").pop()?.toUpperCase() ?? "FILE";
+  return {
+    file,
+    id: `${file.name}-${file.lastModified}-${crypto.randomUUID()}`,
+    name: file.name,
+    kind,
+  };
+}
+
+function safeSubmissionError(value: unknown): SubmissionError {
+  const failure = asSafeTransportFailure(value);
+  if (failure) {
+    return {
+      message: failure.detail.message,
+      recoveryAction: failure.detail.recovery_action,
+    };
+  }
+  return {
+    message: "The investigation could not be started.",
+    recoveryAction: "Review the supplied material and try again.",
+  };
+}

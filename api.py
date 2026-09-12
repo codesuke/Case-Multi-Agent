@@ -7,6 +7,7 @@ from typing import Annotated, TypeVar
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -104,13 +105,16 @@ def create_api(application: InvestigationApplication | None = None) -> FastAPI:
 
     @api.get(
         "/v1/investigations/{investigation_id}/events",
+        response_model=PublicInvestigationEvent,
         responses={
             **_SAFE_FAILURE_RESPONSE,
             status.HTTP_200_OK: {
                 "description": "Ordered public investigation events.",
                 "content": {
                     "text/event-stream": {
-                        "schema": PublicInvestigationEvent.model_json_schema()
+                        "schema": {
+                            "$ref": "#/components/schemas/PublicInvestigationEvent"
+                        }
                     }
                 },
             },
@@ -152,7 +156,26 @@ def create_api(application: InvestigationApplication | None = None) -> FastAPI:
             lambda: investigation_application.reinvestigate(investigation_id, request)
         )
 
+    _configure_openapi(api)
     return api
+
+
+def _configure_openapi(api: FastAPI) -> None:
+    """Describe only the safe errors and SSE media type this adapter returns."""
+    def openapi() -> dict:
+        if api.openapi_schema:
+            return api.openapi_schema
+        schema = get_openapi(title=api.title, version=api.version, routes=api.routes)
+        for path in schema["paths"].values():
+            for operation in path.values():
+                if isinstance(operation, dict):
+                    operation.get("responses", {}).pop("422", None)
+        event_content = schema["paths"]["/v1/investigations/{investigation_id}/events"]["get"]["responses"]["200"]["content"]
+        event_content.pop("application/json", None)
+        api.openapi_schema = schema
+        return schema
+
+    api.openapi = openapi
 
 
 def _call_application(action: Callable[[], _Result]) -> _Result:
