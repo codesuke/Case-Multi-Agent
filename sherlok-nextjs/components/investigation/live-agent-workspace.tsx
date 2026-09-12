@@ -9,6 +9,14 @@ import { safeFailureMessage } from "@/lib/investigation-contract";
 type Snapshot = components["schemas"]["InvestigationSnapshot"];
 type InvestigationEvent = components["schemas"]["PublicInvestigationEvent"];
 
+type WorkflowStatus = "queued" | "working" | "completed" | "revising" | "failed" | "awaiting_review";
+
+type WorkflowStep = {
+  label: string;
+  stages: string[];
+  specialist?: string;
+};
+
 const EVENT_TYPES = [
   "validation_error", "configuration_validated", "case_material_curation_started",
   "case_material_curation_completed", "evidence_collection_started",
@@ -21,6 +29,16 @@ const EVENT_TYPES = [
   "lead_detective_completed", "reinvestigation_requested", "step_failed",
   "investigation_failed", "human_decision_recorded",
 ] as const;
+
+const WORKFLOW_STEPS: WorkflowStep[] = [
+  { label: "Case File Curator", stages: ["case_material_curation"] },
+  { label: "Evidence Collector", stages: ["evidence_collection"] },
+  { label: "Suspect Analyst", stages: ["suspect_analysis", "specialist_revision"], specialist: "suspect_analyst" },
+  { label: "Timeline Reconciler", stages: ["timeline_reconciliation", "specialist_revision"], specialist: "timeline_reconciler" },
+  { label: "Skeptic", stages: ["skeptic_review"] },
+  { label: "Lead Detective", stages: ["lead_detective"] },
+  { label: "Human review", stages: ["human_review", "lead_detective"] },
+];
 
 export function LiveAgentWorkspace({ investigationId }: { investigationId: string }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -102,7 +120,8 @@ export function LiveAgentWorkspace({ investigationId }: { investigationId: strin
       </header>
       {failure && <p className="mx-auto mt-6 max-w-4xl rounded border border-red-300 bg-red-950/40 p-4" role="alert">{failure}</p>}
       {streamNotice && <p className="mx-auto mt-6 max-w-4xl rounded border border-[#f4b941] bg-[#382315] p-4" role="status">{streamNotice}</p>}
-      <section className="mx-auto mt-6 max-w-4xl" aria-live="polite">
+      <Workflow events={events} />
+      <section className="mx-auto mt-8 max-w-4xl" aria-live="polite">
         <h2 className="font-serif text-2xl">Observable workflow</h2>
         {events.length === 0 ? <p className="mt-3 text-[#e9d8bb]">Waiting for safe investigation events…</p> : <ol className="mt-4 space-y-3">{events.map((event) => <li key={event.event_id} className="rounded border border-[#745022] bg-[#382315] p-4"><b>{readable(event.stage)}</b> — {readable(event.status)}{event.specialist ? ` (${readable(event.specialist)})` : ""}{event.message ? `: ${event.message}` : ""}</li>)}</ol>}
       </section>
@@ -112,3 +131,39 @@ export function LiveAgentWorkspace({ investigationId }: { investigationId: strin
 
 function messageFrom(value: unknown): string { return safeFailureMessage(value, "The investigation could not be loaded."); }
 function readable(value: string): string { return value.replaceAll("_", " "); }
+
+function Workflow({ events }: { events: InvestigationEvent[] }) {
+  return (
+    <section className="mx-auto mt-6 max-w-4xl" aria-labelledby="workflow-heading">
+      <h2 id="workflow-heading" className="font-serif text-2xl">Workflow stages</h2>
+      <p className="mt-2 text-sm text-[#e9d8bb]">The two specialist paths run independently before Skeptic review.</p>
+      <ol className="mt-4 grid gap-3 md:grid-cols-2">
+        {WORKFLOW_STEPS.map((step) => (
+          <WorkflowStepCard key={step.label} step={step} status={statusFor(step, events)} />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function WorkflowStepCard({ step, status }: { step: WorkflowStep; status: WorkflowStatus }) {
+  return (
+    <li className="rounded border border-[#745022] bg-[#382315] p-4">
+      <p className="font-semibold">{step.label}</p>
+      <p className="mt-1 text-sm text-[#e9d8bb]">{readable(status)}</p>
+    </li>
+  );
+}
+
+function statusFor(step: WorkflowStep, events: InvestigationEvent[]): WorkflowStatus {
+  const matchingEvents = events.filter((event) => {
+    if (!step.stages.includes(event.stage)) return false;
+    return !step.specialist || !event.specialist || event.specialist === step.specialist;
+  });
+  const latest = matchingEvents.at(-1);
+  if (!latest) return "queued";
+  if (step.label === "Human review" && latest.stage === "lead_detective" && latest.status === "awaiting_review") {
+    return "awaiting_review";
+  }
+  return latest.status as WorkflowStatus;
+}
