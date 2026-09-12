@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { SherlokMark } from "@/components/investigation/sherlok-mark";
 
 const supportedExtensions = ["txt", "md", "docx", "pdf"];
 const providers = { gemini: "Gemini", openai: "OpenAI", groq: "Groq" } as const;
@@ -48,9 +49,8 @@ export function StartInvestigation() {
   const [rejectedFiles, setRejectedFiles] = useState<Source[]>([]);
   const [provider, setProvider] = useState<Provider>("gemini");
   const [starting, setStarting] = useState(false);
-  const [submissionError, setSubmissionError] = useState<SubmissionError | null>(
-    null,
-  );
+  const [submissionError, setSubmissionError] =
+    useState<SubmissionError | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const ready = Boolean(text.trim() || files.length);
@@ -506,9 +506,12 @@ function Intro() {
       <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(#f4b941_.75px,transparent_.75px)] [background-size:16px_16px]" />
       <div className="relative flex min-h-full flex-col">
         <div>
-          <span className="font-serif text-5xl font-semibold leading-none tracking-tight text-[#f8ebd2]">
-            Sherlok
-          </span>
+          <div className="flex items-center gap-3">
+            <SherlokMark size={48} />
+            <span className="font-serif text-5xl font-semibold leading-none tracking-tight text-[#f8ebd2]">
+              Sherlok
+            </span>
+          </div>
           <p className="mt-2 text-sm text-[#d8c4a0]">
             AI agents for deeper answers
           </p>
@@ -523,11 +526,14 @@ function Intro() {
             connect, and reason across the facts.
           </p>
         </div>
-        <ol className="mt-9 space-y-6 border-l border-[#b89b6e] pl-11">
+        <ol className="mt-9 space-y-6 pl-16">
           {steps.map(([title, description], index) => (
-            <li key={title} className="relative">
+            <li
+              key={title}
+              className="relative before:absolute before:left-5 before:top-5 before:h-[calc(100%+1.5rem)] before:w-px before:bg-[#b89b6e] last:before:hidden"
+            >
               <span
-                className={`absolute -left-[3.65rem] top-0 grid size-10 place-items-center rounded-full border text-lg font-semibold ${index === 0 ? "border-[#f4b941] bg-[#f4b941] text-[#24160e]" : "border-[#d8c4a0] bg-[#24160e] text-[#f8ebd2]"}`}
+                className={`absolute left-0 top-0 z-10 grid size-10 place-items-center rounded-full border text-lg font-semibold ${index === 0 ? "border-[#f4b941] bg-[#f4b941] text-[#24160e]" : "border-[#d8c4a0] bg-[#24160e] text-[#f8ebd2]"}`}
               >
                 {index + 1}
               </span>

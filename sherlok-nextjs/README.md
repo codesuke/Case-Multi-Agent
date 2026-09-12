@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./public/assets/sherlok-logo-minimal-brown.png" alt="Sherlok detective mark" width="128" />
+</p>
+
 # Sherlok Next.js Workspace
 
 This directory contains Sherlok's target user-facing investigation workspace.
@@ -17,8 +21,7 @@ pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The current home page is
-still the generated scaffold.
+Open [http://localhost:3000](http://localhost:3000) to start an investigation.
 
 ## Deploy with Dokploy
 
