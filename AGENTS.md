@@ -1,7 +1,8 @@
 # Agent Guide
 
-This is a beginner-friendly Python/Gradio demonstration of a multi-agent
-detective workflow. The repository is the source of truth: read the durable
+This is a beginner-friendly Python/Next.js demonstration of a multi-agent
+detective workflow. Python owns investigation orchestration and Next.js owns
+the user-facing workspace. The repository is the source of truth: read the durable
 docs before changing behavior, make meaningful decisions explicit, and leave
 the project clearer than you found it.
 
@@ -10,13 +11,13 @@ the project clearer than you found it.
 - `docs/project-brief/PS.md` — assignment context and expected deliverable.
 - `docs/reference-material/The_Vanishing_Aurora_Diamond_Case_Book.docx` —
   authoritative reference case and facilitator evaluation material.
-- [GitHub master issue #1](https://github.com/codesuke/Case-Multi-Agent/issues/1)
+- [GitHub master issue #1](https://github.com/codesuke/Sherlok/issues/1)
   — product requirements, behavior contracts, and work tracking.
 - `docs/specs-implemented/2026-09-11-sherlok-design.md` —
   intended architecture.
 - `Architecture.md` — code layout and dependency boundaries.
 - `CONTEXT.md` — project-specific language.
-- `docs/agents/code-quality.md` and `docs/agents/python-gradio-conventions.md`
+- `docs/agents/code-quality.md` and `docs/agents/python-nextjs-conventions.md`
   — implementation conventions.
 
 ## Working Rules

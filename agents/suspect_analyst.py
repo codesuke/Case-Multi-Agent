@@ -66,18 +66,38 @@ class SuspectAnalyst:
         self._llm = llm
 
     def run(self, case_file: CaseFile) -> CaseFile:
+        prompt = format_specialist_prompt(case_file, Specialist.SUSPECT_ANALYST)
         response = self._llm.call_llm(
-            prompt=format_specialist_prompt(case_file, Specialist.SUSPECT_ANALYST),
+            prompt=prompt,
             system=SYSTEM_PROMPT,
             response_schema=RESPONSE_SCHEMA,
         )
         known_evidence_ids = {item.id for item in case_file.evidence}
-        profiles = [
-            self._parse_profile(raw_suspect, known_evidence_ids)
-            for raw_suspect in response["suspects"]
-        ]
+        try:
+            profiles = self._parse_profiles(response, known_evidence_ids)
+        except ValueError:
+            response = self._llm.call_llm(
+                self._build_correction_prompt(prompt), SYSTEM_PROMPT, RESPONSE_SCHEMA
+            )
+            profiles = self._parse_profiles(response, known_evidence_ids)
         case_file.suspect_profiles = profiles
         return case_file
+
+    @staticmethod
+    def _build_correction_prompt(prompt: str) -> str:
+        return (
+            f"{prompt}\n\nYour previous suspect-profile JSON failed validation. Return the full "
+            "profile JSON again, citing only evidence IDs listed above."
+        )
+
+    @classmethod
+    def _parse_profiles(
+        cls, response: dict, known_evidence_ids: set[str]
+    ) -> list[SuspectProfile]:
+        return [
+            cls._parse_profile(raw_suspect, known_evidence_ids)
+            for raw_suspect in response["suspects"]
+        ]
 
     @classmethod
     def _parse_profile(cls, raw_suspect: dict, known_evidence_ids: set[str]) -> SuspectProfile:

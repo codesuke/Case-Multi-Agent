@@ -72,23 +72,43 @@ class TimelineReconciler:
         self._llm = llm
 
     def run(self, case_file: CaseFile) -> CaseFile:
+        prompt = format_specialist_prompt(case_file, Specialist.TIMELINE_RECONCILER)
         response = self._llm.call_llm(
-            prompt=format_specialist_prompt(case_file, Specialist.TIMELINE_RECONCILER),
+            prompt=prompt,
             system=SYSTEM_PROMPT,
             response_schema=RESPONSE_SCHEMA,
         )
         evidence_ids = {item.id for item in case_file.evidence}
-        events = [
-            self._parse_event(item, evidence_ids) for item in response["events"]
-        ]
-        timeline = Timeline(
-            events=_ordered_events(events),
-            issues=[
-                self._parse_issue(item, evidence_ids) for item in response["issues"]
-            ],
-        )
+        try:
+            timeline = self._parse_timeline(response, evidence_ids)
+        except ValueError:
+            response = self._llm.call_llm(
+                prompt=self._build_correction_prompt(prompt),
+                system=SYSTEM_PROMPT,
+                response_schema=RESPONSE_SCHEMA,
+            )
+            timeline = self._parse_timeline(response, evidence_ids)
         case_file.timeline = timeline
         return case_file
+
+    @staticmethod
+    def _build_correction_prompt(prompt: str) -> str:
+        return (
+            f"{prompt}\n\nYour previous timeline JSON failed validation. Return the full "
+            "timeline JSON again, citing only evidence IDs listed above."
+        )
+
+    @classmethod
+    def _parse_timeline(cls, response: dict, evidence_ids: set[str]) -> Timeline:
+        events = [
+            cls._parse_event(item, evidence_ids) for item in response["events"]
+        ]
+        return Timeline(
+            events=_ordered_events(events),
+            issues=[
+                cls._parse_issue(item, evidence_ids) for item in response["issues"]
+            ],
+        )
 
     @staticmethod
     def _parse_event(raw_event: dict, known_ids: set[str]) -> TimelineEvent:

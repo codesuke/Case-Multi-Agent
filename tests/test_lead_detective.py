@@ -34,6 +34,16 @@ class StubLLM:
         return self.response
 
 
+@dataclass
+class SequentialResponseLLM:
+    responses: list[dict]
+    prompts: list[str] = field(default_factory=list)
+
+    def call_llm(self, prompt: str, system: str, response_schema: dict) -> dict:
+        self.prompts.append(prompt)
+        return self.responses.pop(0)
+
+
 def _case_file_with_approved_review() -> CaseFile:
     """A fully resolved case: every claim and event is supported, no open issues."""
     case_file = CaseFile(mystery_text="A necklace vanished from the study overnight.")
@@ -154,6 +164,20 @@ def test_lead_detective_produces_a_ranked_evidence_cited_verdict() -> None:
     assert conclusion.suspect == "The Housekeeper"
     assert conclusion.evidence_ids == ("E-01",)
     assert verdict.limitations == ("Who physically held the key card is not established.",)
+
+
+def test_lead_detective_corrects_an_unknown_evidence_id_once() -> None:
+    invalid_response = _valid_response()
+    invalid_response["conclusions"][0]["evidence_ids"] = ["E-404"]
+    llm = SequentialResponseLLM(responses=[invalid_response, _valid_response()])
+    case_file = _case_file_with_approved_review()
+
+    LeadDetective(llm).run(case_file)
+
+    assert case_file.verdict is not None
+    assert case_file.verdict.conclusions[0].evidence_ids == ("E-01",)
+    assert len(llm.prompts) == 2
+    assert "only evidence IDs listed above" in llm.prompts[1]
 
 
 def test_lead_detective_orders_conclusions_by_rank_regardless_of_response_order() -> None:

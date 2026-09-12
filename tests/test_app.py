@@ -5,6 +5,7 @@ import pytest
 import gradio as gr
 
 from app import (
+    INTERFACE_CSS,
     build_interface,
     default_provider,
     launch_interface,
@@ -30,14 +31,63 @@ def test_launch_interface_binds_to_all_container_interfaces_and_port_from_enviro
 
     launch_interface()
 
-    assert interface.launch_arguments == {"server_name": "0.0.0.0", "server_port": 8080}
+    assert interface.launch_arguments == {
+        "server_name": "0.0.0.0",
+        "server_port": 8080,
+        "css": INTERFACE_CSS,
+    }
 
 
 def test_interface_can_be_constructed_after_declared_dependencies_are_installed() -> None:
     interface = build_interface()
 
     assert isinstance(interface, gr.Blocks)
-    assert interface.title == "Sherlok"
+    assert interface.title == "Sherlok — Multi-agent case investigator"
+
+
+def test_interface_header_uses_the_sherlok_logo_and_explains_the_app() -> None:
+    interface = build_interface()
+    components = interface.get_config_file()["components"]
+    props_by_element_id = {
+        component["props"].get("elem_id"): component["props"]
+        for component in components
+        if component["props"].get("elem_id")
+    }
+
+    logo = props_by_element_id["sherlok-logo"]
+    header_copy = props_by_element_id["sherlok-title"]["value"]
+
+    assert logo["value"]["orig_name"] == "sherlok-logo-minimal.png"
+    assert "<h1>Sherlok</h1>" in header_copy
+    assert "Multi-agent case investigator" in header_copy
+
+
+def test_interface_uses_clear_action_labels_and_separates_live_status_from_errors() -> None:
+    interface = build_interface()
+    components = interface.get_config_file()["components"]
+    labels = {
+        candidate
+        for component in components
+        if isinstance(
+            (candidate := component["props"].get("value") or component["props"].get("label")),
+            str,
+        )
+    }
+    element_ids = {component["props"].get("elem_id") for component in components}
+
+    assert "Run investigation" in labels
+    assert "Accept proposed verdict" in labels
+    assert "Reject proposed verdict" in labels
+    assert "Request a focused re-investigation" in labels
+    assert "agent-activity" in element_ids
+    assert "investigation-errors" in element_ids
+
+
+def test_interface_styles_use_a_consistent_dark_palette() -> None:
+    assert "color-scheme: dark" in INTERFACE_CSS
+    assert "--sherlok-canvas: #07131d" in INTERFACE_CSS
+    assert "--sherlok-ink: #f1f7f8" in INTERFACE_CSS
+    assert "--sherlok-accent: #20c7bd" in INTERFACE_CSS
 from case_file import (
     CaseFile,
     Claim,

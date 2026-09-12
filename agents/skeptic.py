@@ -72,16 +72,22 @@ class Skeptic:
         self._llm = llm
 
     def run(self, case_file: CaseFile) -> CaseFile:
+        prompt = _build_prompt(case_file)
         response = self._llm.call_llm(
-            prompt=_build_prompt(case_file),
+            prompt=prompt,
             system=SYSTEM_PROMPT,
             response_schema=RESPONSE_SCHEMA,
         )
         known_claims = _known_claims_by_specialist(case_file)
-        findings = tuple(
-            _parse_finding(raw_finding, known_claims)
-            for raw_finding in response["findings"]
-        )
+        try:
+            findings = _parse_findings(response, known_claims)
+        except ValueError:
+            response = self._llm.call_llm(
+                prompt=_build_correction_prompt(prompt),
+                system=SYSTEM_PROMPT,
+                response_schema=RESPONSE_SCHEMA,
+            )
+            findings = _parse_findings(response, known_claims)
         outcome = (
             SkepticReviewOutcome.APPROVED
             if not findings
@@ -102,6 +108,14 @@ def _build_prompt(case_file: CaseFile) -> str:
     return "\n".join(lines)
 
 
+def _build_correction_prompt(prompt: str) -> str:
+    return (
+        f"{prompt}\n\nYour previous Skeptic JSON failed validation. Return the full review JSON "
+        "again. For every finding, copy the exact statement text from the specialist claims "
+        "above; do not include bullet labels or evidence citations in the claim field."
+    )
+
+
 def _known_claims_by_specialist(case_file: CaseFile) -> dict[Specialist, set[str]]:
     suspect_claims = {
         claim.statement
@@ -115,6 +129,15 @@ def _known_claims_by_specialist(case_file: CaseFile) -> dict[Specialist, set[str
         Specialist.SUSPECT_ANALYST: suspect_claims,
         Specialist.TIMELINE_RECONCILER: timeline_claims,
     }
+
+
+def _parse_findings(
+    response: dict, known_claims: dict[Specialist, set[str]]
+) -> tuple[SkepticFinding, ...]:
+    return tuple(
+        _parse_finding(raw_finding, known_claims)
+        for raw_finding in response["findings"]
+    )
 
 
 def _parse_finding(
@@ -133,7 +156,7 @@ def _parse_finding(
             f"Unknown Skeptic finding kind: {raw_finding['kind']!r}"
         ) from error
 
-    claim = raw_finding["claim"]
+    claim = _resolve_claim_reference(raw_finding["claim"], known_claims[specialist])
     if claim not in known_claims[specialist]:
         raise ValueError(
             f"Skeptic finding cites a claim not made by {specialist.value}: {claim!r}"
@@ -144,3 +167,40 @@ def _parse_finding(
         kind=kind,
         explanation=raw_finding["explanation"],
     )
+
+
+def _resolve_claim_reference(raw_claim: str, known_claims: set[str]) -> str:
+    """Accept a claim statement rendered by this application's specialist view."""
+    if raw_claim in known_claims:
+        return raw_claim
+    rendered_claim = _normalize_apostrophes(raw_claim.removeprefix("- "))
+    matching_claims = []
+    for claim in known_claims:
+        normalized_claim = _normalize_apostrophes(claim)
+        if rendered_claim == normalized_claim:
+            matching_claims.append(claim)
+            continue
+        rendered_prefixes = (
+            f"Motive: {normalized_claim}",
+            f"Opportunity: {normalized_claim}",
+            f"Event: {normalized_claim}",
+            f"Issue (gap): {normalized_claim}",
+            f"Issue (contradiction): {normalized_claim}",
+        )
+        if any(
+            _has_rendered_claim_suffix(rendered_claim, prefix)
+            for prefix in rendered_prefixes
+        ):
+            matching_claims.append(claim)
+    if len(matching_claims) == 1:
+        return matching_claims[0]
+    return raw_claim
+
+
+def _normalize_apostrophes(value: str) -> str:
+    return value.replace("‘", "'").replace("’", "'")
+
+
+def _has_rendered_claim_suffix(raw_claim: str, prefix: str) -> bool:
+    suffix = raw_claim.removeprefix(prefix)
+    return suffix.startswith(" (") and suffix.endswith(")")

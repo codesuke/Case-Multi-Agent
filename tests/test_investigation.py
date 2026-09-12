@@ -770,6 +770,37 @@ class FailingAtLLM:
         return _canned_response(_expected_response_key(system), self.evidence_id)
 
 
+@dataclass
+class SemanticallyInvalidSpecialistLLM:
+    """Returns an evidence-citation error after collection succeeds."""
+
+    def call_llm(self, prompt: str, system: str, response_schema: dict) -> dict:
+        expected_key = _expected_response_key(system)
+        if expected_key == "suspects":
+            return {
+                "suspects": [
+                    {
+                        "name": "The Butler",
+                        "motive": [
+                            {
+                                "statement": "Owed the victim money.",
+                                "status": "supported",
+                                "evidence_ids": ["E-404"],
+                            }
+                        ],
+                        "opportunity": [
+                            {
+                                "statement": "Was alone in the study.",
+                                "status": "supported",
+                                "evidence_ids": ["E-01"],
+                            }
+                        ],
+                    }
+                ]
+            }
+        return _canned_response(expected_key, "E-01")
+
+
 def test_evidence_collector_boundary_failure_halts_before_any_other_agent_runs() -> None:
     llm = FailingAtLLM(fail_when="Evidence Collector")
 
@@ -826,6 +857,17 @@ def test_suspect_analyst_boundary_failure_halts_skeptic_and_lead_detective() -> 
     assert final_case_file.suspect_profiles == []
     assert final_case_file.skeptic_reviews == []
     assert final_case_file.verdict is None
+
+
+def test_suspect_analyst_semantic_failure_is_visible_after_evidence_collection() -> None:
+    events = list(
+        stream_investigation("A quiet manor at midnight.", SemanticallyInvalidSpecialistLLM())
+    )
+
+    assert events[-1].kind is InvestigationEventKind.STEP_FAILED
+    assert events[-1].agent_name == "Suspect Analyst"
+    assert "E-404" in events[-1].message
+    assert InvestigationEventKind.SKEPTIC_REVIEW_STARTED not in [event.kind for event in events]
 
 
 def test_both_concurrent_specialists_failing_still_halts_before_skeptic_and_lead_detective() -> None:

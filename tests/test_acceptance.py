@@ -242,7 +242,7 @@ def test_aurora_participant_fixture_completes_revision_and_visible_human_review(
     assert any("Missing evidence" in item and "inspect" in item for item in case_file.verdict.limitations)
     assert case_file.verdict.review_status is VerdictReviewStatus.AWAITING_REVIEW
     assert "proposal pending human review" in app.render_verdict(case_file)
-    assert all(update["interactive"] for update in app.sync_review_controls(case_file))
+    assert all(update.get_config()["interactive"] for update in app.sync_review_controls(case_file))
 
 
 def test_gradio_facing_stream_renders_the_aurora_verdict_for_human_review(

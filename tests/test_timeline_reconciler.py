@@ -30,6 +30,16 @@ class StubLLM:
         return self.response
 
 
+@dataclass
+class SequentialResponseLLM:
+    responses: list[dict]
+    prompts: list[str] = field(default_factory=list)
+
+    def call_llm(self, prompt: str, system: str, response_schema: dict) -> dict:
+        self.prompts.append(prompt)
+        return self.responses.pop(0)
+
+
 def _case_file_with_evidence() -> CaseFile:
     case_file = CaseFile(mystery_text="A signed manuscript vanished during a reception.")
     case_file.evidence = [
@@ -89,6 +99,19 @@ def test_timeline_reconciler_prompt_omits_guidance_section_without_human_notes()
     TimelineReconciler(llm).run(case_file)
 
     assert "human reviewer" not in llm.prompts[0].lower()
+
+
+def test_timeline_reconciler_corrects_an_unknown_evidence_id_once() -> None:
+    invalid_response = _minimal_response()
+    invalid_response["events"][0]["evidence_ids"] = ["O-03"]
+    llm = SequentialResponseLLM(responses=[invalid_response, _minimal_response()])
+    case_file = _case_file_with_evidence()
+
+    TimelineReconciler(llm).run(case_file)
+
+    assert case_file.timeline.events[0].evidence_ids == ("R-7",)
+    assert len(llm.prompts) == 2
+    assert "only evidence IDs listed above" in llm.prompts[1]
 
 
 def test_timeline_reconciler_receives_only_its_own_skeptic_feedback() -> None:

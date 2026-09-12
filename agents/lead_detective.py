@@ -70,21 +70,33 @@ class LeadDetective:
         self._llm = llm
 
     def run(self, case_file: CaseFile) -> CaseFile:
+        prompt = _build_prompt(case_file)
         response = self._llm.call_llm(
-            prompt=_build_prompt(case_file),
+            prompt=prompt,
             system=SYSTEM_PROMPT,
             response_schema=RESPONSE_SCHEMA,
         )
-        known_evidence_ids = {item.id for item in case_file.evidence}
-        conclusions = _parse_conclusions(response["conclusions"], known_evidence_ids)
-        limitations = tuple(response["limitations"])
-        _require_limitations_when_uncertain(case_file, limitations)
-        case_file.verdict = Verdict(
-            conclusions=conclusions,
-            confidence=response["confidence"],
-            limitations=limitations,
-        )
+        try:
+            verdict = _parse_verdict(response, case_file)
+        except ValueError:
+            response = self._llm.call_llm(
+                _build_correction_prompt(prompt), SYSTEM_PROMPT, RESPONSE_SCHEMA
+            )
+            verdict = _parse_verdict(response, case_file)
+        case_file.verdict = verdict
         return case_file
+
+
+def _parse_verdict(response: dict, case_file: CaseFile) -> Verdict:
+    known_evidence_ids = {item.id for item in case_file.evidence}
+    conclusions = _parse_conclusions(response["conclusions"], known_evidence_ids)
+    limitations = tuple(response["limitations"])
+    _require_limitations_when_uncertain(case_file, limitations)
+    return Verdict(
+        conclusions=conclusions,
+        confidence=response["confidence"],
+        limitations=limitations,
+    )
 
 
 def _build_prompt(case_file: CaseFile) -> str:
@@ -100,6 +112,13 @@ def _build_prompt(case_file: CaseFile) -> str:
     if guidance:
         lines.extend(["", guidance])
     return "\n".join(lines)
+
+
+def _build_correction_prompt(prompt: str) -> str:
+    return (
+        f"{prompt}\n\nYour previous verdict JSON failed validation. Return the full verdict "
+        "JSON again, citing only evidence IDs listed above."
+    )
 
 
 def _format_skeptic_reviews(case_file: CaseFile) -> str:

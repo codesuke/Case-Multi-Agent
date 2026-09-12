@@ -283,7 +283,7 @@ def _run_analysis_and_verdict(case_file: CaseFile, llm: LLMClient) -> Iterator[I
             completed_kind, agent_name = future_meta[future]
             try:
                 specialist_case_file = future.result()
-            except LLMError as error:
+            except (LLMError, ValueError) as error:
                 raise _StepFailed(agent_name, str(error)) from error
             if completed_kind is InvestigationEventKind.SUSPECT_ANALYSIS_COMPLETED:
                 case_file.suspect_profiles = specialist_case_file.suspect_profiles

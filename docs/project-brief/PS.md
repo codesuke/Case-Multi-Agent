@@ -16,4 +16,10 @@ Build A Begineer-friendly multi-agent system where specialized AI Detectives ana
 
 ## Orchestartion: Python
 
-## UI: GRADIO
+## UI: NEXT.JS
+
+Next.js presents the investigation as an evidence-led workspace. It must help
+the user see which agent is working, how evidence moves through the workflow,
+where the Skeptic requested a revision, and why the proposed verdict cites its
+supporting evidence. Python remains the orchestration runtime behind a typed
+HTTP and event-stream interface.

@@ -51,6 +51,26 @@ The non-empty note a human attaches when requesting re-investigation,
 retained on the case file and available to every agent that reruns.
 _Avoid_: prompt, comment
 
+**Investigation event**:
+A safe, observable change in workflow state that the Python runtime may send
+to the Next.js workspace, such as an agent starting, completing, revising, or
+failing. It can include a public summary and evidence IDs, but never hidden
+model reasoning.
+_Avoid_: chain-of-thought, agent thought
+
+**Investigation snapshot**:
+The current displayable projection of a case file: normalized sources,
+workflow statuses, evidence, specialist results, Skeptic findings, proposed
+verdict, and human decision. It is the recovery source when a live event was
+missed.
+_Avoid_: frontend state, transcript
+
+**Agent Workspace**:
+The Next.js view that shows the ordered workflow, parallel specialist work,
+Skeptic challenge, bounded revision, synthesis, and handoff to human review.
+It visualizes public investigation events rather than hidden reasoning.
+_Avoid_: chat, chain-of-thought viewer
+
 **Re-investigation**:
 A restart of suspect analysis, timeline reconciliation, Skeptic review, and
 verdict synthesis against the original mystery and evidence plus the

@@ -7,6 +7,7 @@ import pytest
 from agents.suspect_analyst import SuspectAnalyst
 from case_file import (
     CaseFile,
+    ClaimStatus,
     EvidenceClassification,
     EvidenceItem,
     SkepticFinding,
@@ -25,6 +26,16 @@ class StubLLM:
     def call_llm(self, prompt: str, system: str, response_schema: dict) -> dict:
         self.prompts.append(prompt)
         return self.response
+
+
+@dataclass
+class SequentialResponseLLM:
+    responses: list[dict]
+    prompts: list[str] = field(default_factory=list)
+
+    def call_llm(self, prompt: str, system: str, response_schema: dict) -> dict:
+        self.prompts.append(prompt)
+        return self.responses.pop(0)
 
 
 def _case_file_with_evidence() -> CaseFile:
@@ -108,6 +119,20 @@ def test_suspect_analyst_rejects_claims_citing_unknown_evidence_ids() -> None:
 
     with pytest.raises(ValueError, match="evidence"):
         SuspectAnalyst(llm).run(case_file)
+
+
+def test_suspect_analyst_corrects_an_unknown_evidence_id_once() -> None:
+    invalid_response = _minimal_response()
+    invalid_response["suspects"][0]["motive"][0]["status"] = "supported"
+    invalid_response["suspects"][0]["motive"][0]["evidence_ids"] = ["E-404"]
+    llm = SequentialResponseLLM(responses=[invalid_response, _minimal_response()])
+    case_file = _case_file_with_evidence()
+
+    SuspectAnalyst(llm).run(case_file)
+
+    assert case_file.suspect_profiles[0].motive[0].status is ClaimStatus.UNKNOWN
+    assert len(llm.prompts) == 2
+    assert "only evidence IDs listed above" in llm.prompts[1]
 
 
 def test_suspect_analyst_rejects_supported_claims_without_citations() -> None:

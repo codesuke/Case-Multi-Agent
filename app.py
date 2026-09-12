@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 import os
+from pathlib import Path
 
 import gradio as gr
 
@@ -33,6 +34,8 @@ from orchestrator import (
 load_local_environment()
 
 SUPPORTED_PROVIDERS = ("gemini", "openai", "groq")
+APP_TITLE = "Sherlok — Multi-agent case investigator"
+LOGO_PATH = Path(__file__).parent / "assets" / "sherlok-logo-minimal.png"
 
 
 def default_provider() -> str:
@@ -61,50 +64,87 @@ SPECIALIST_LABELS = {
 
 PROGRESS_LABELS = {
     InvestigationEventKind.CASE_MATERIAL_CURATION_STARTED: (
-        "📚 Case File Curator is normalizing case material..."
+        "Case File Curator is normalizing the supplied material."
     ),
-    InvestigationEventKind.CASE_MATERIAL_CURATION_COMPLETED: "✅ Case File Curator finished.",
+    InvestigationEventKind.CASE_MATERIAL_CURATION_COMPLETED: "Case File Curator finished.",
     InvestigationEventKind.EVIDENCE_COLLECTION_STARTED: (
-        "🔎 Evidence Collector is reading the case..."
+        "Evidence Collector is reading the case."
     ),
-    InvestigationEventKind.EVIDENCE_COLLECTION_COMPLETED: "✅ Evidence Collector finished.",
-    InvestigationEventKind.SUSPECT_ANALYSIS_STARTED: "🕵️ Suspect Analyst is building profiles...",
-    InvestigationEventKind.SUSPECT_ANALYSIS_COMPLETED: "✅ Suspect Analyst finished.",
+    InvestigationEventKind.EVIDENCE_COLLECTION_COMPLETED: "Evidence Collector finished.",
+    InvestigationEventKind.SUSPECT_ANALYSIS_STARTED: "Suspect Analyst is building profiles.",
+    InvestigationEventKind.SUSPECT_ANALYSIS_COMPLETED: "Suspect Analyst finished.",
     InvestigationEventKind.TIMELINE_RECONCILIATION_STARTED: (
-        "🕰️ Timeline Reconciler is ordering events..."
+        "Timeline Reconciler is ordering events."
     ),
-    InvestigationEventKind.TIMELINE_RECONCILIATION_COMPLETED: "✅ Timeline Reconciler finished.",
+    InvestigationEventKind.TIMELINE_RECONCILIATION_COMPLETED: "Timeline Reconciler finished.",
     InvestigationEventKind.SKEPTIC_REVIEW_STARTED: (
-        "🧐 Skeptic is reviewing the specialists' claims..."
+        "Skeptic is reviewing the specialists' claims."
     ),
-    InvestigationEventKind.SKEPTIC_REVIEW_APPROVED: "✅ Skeptic approved the specialist claims.",
+    InvestigationEventKind.SKEPTIC_REVIEW_APPROVED: "Skeptic approved the specialist claims.",
     InvestigationEventKind.SKEPTIC_REVIEW_REVISION_REQUESTED: (
-        "⚠️ Skeptic requested a revision."
+        "Skeptic requested a revision."
     ),
     InvestigationEventKind.SKEPTIC_REVIEW_EXHAUSTED: (
-        "❌ Skeptic review exhausted; unresolved findings remain."
+        "Skeptic review exhausted; unresolved findings remain."
     ),
     InvestigationEventKind.LEAD_DETECTIVE_STARTED: (
-        "🧑‍💼 Lead Detective is drafting the verdict..."
+        "Lead Detective is drafting the verdict."
     ),
-    InvestigationEventKind.LEAD_DETECTIVE_COMPLETED: "✅ Lead Detective finished.",
+    InvestigationEventKind.LEAD_DETECTIVE_COMPLETED: "Lead Detective finished.",
 }
 
 
 def _progress_label(event: InvestigationEvent) -> str:
     if event.kind is InvestigationEventKind.CONFIGURATION_VALIDATED:
-        return f"ℹ️ {event.message}"
+        return event.message or "Configuration validated."
     if event.kind is InvestigationEventKind.STEP_FAILED:
-        return f"❌ {event.agent_name} step failed: {event.message}"
+        return f"ERROR — {event.agent_name} step failed: {event.message}"
     if event.kind is InvestigationEventKind.SPECIALIST_REVISION_STARTED:
         name = SPECIALIST_LABELS[event.specialist]
-        return f"🔁 {name} is revising with reviewer feedback..."
+        return f"{name} is revising with reviewer feedback."
     if event.kind is InvestigationEventKind.SPECIALIST_REVISION_COMPLETED:
         name = SPECIALIST_LABELS[event.specialist]
-        return f"✅ {name} revision finished."
+        return f"{name} revision finished."
     if event.kind is InvestigationEventKind.REINVESTIGATION_REQUESTED:
         return f"🔁 Re-investigation requested: {event.message}"
     return PROGRESS_LABELS[event.kind]
+
+
+def render_agent_activity(transcript: str) -> str:
+    """Render the current and completed agent work apart from the raw event log."""
+    stage_names = (
+        "Case File Curator",
+        "Evidence Collector",
+        "Suspect Analyst",
+        "Timeline Reconciler",
+        "Skeptic",
+        "Lead Detective",
+        "LLM configuration",
+        "Re-investigation",
+    )
+    event_lines = [
+        line
+        for line in transcript.splitlines()
+        if line
+        and not line.startswith("ERROR —")
+        and any(stage_name in line for stage_name in stage_names)
+    ]
+    if not event_lines:
+        return "_Waiting for an investigation to start._"
+    latest = event_lines[-1]
+    completed = [line for line in event_lines if "finished." in line or "approved" in line]
+    lines = ["**Latest update**", latest]
+    if completed:
+        lines.extend(["", "**Completed stages**", *(f"- {line}" for line in completed)])
+    return "\n".join(lines)
+
+
+def render_investigation_errors(transcript: str) -> str:
+    """Render actionable failures separately so they are not buried in progress."""
+    errors = [line.removeprefix("ERROR — ") for line in transcript.splitlines() if line.startswith("ERROR —")]
+    if not errors:
+        return "_No errors reported. If a stage cannot continue, its name and reason appear here._"
+    return "\n".join(["**Investigation stopped**", *(f"- {error}" for error in errors)])
 
 
 def render_case_file(case_file: CaseFile) -> str:
@@ -233,16 +273,21 @@ def _verdict_awaiting_review(case_file: CaseFile | None) -> bool:
     return bool(case_file is not None and case_file.verdict is not None and case_file.verdict.is_awaiting_review)
 
 
-def sync_review_controls(case_file: CaseFile | None) -> tuple[dict, dict, dict]:
+def sync_review_controls(
+    case_file: CaseFile | None,
+) -> tuple[gr.Button, gr.Button, gr.Button]:
     """Enable Accept/Reject/Request re-investigation only while awaiting review."""
     interactive = _verdict_awaiting_review(case_file)
-    # Component-update dictionaries are accepted by Gradio callbacks across
-    # supported releases; the old module-level ``gr.update`` helper is not.
-    update = {"interactive": interactive}
-    return update, update, update
+    # Gradio 6 applies component update objects. Plain dictionaries are
+    # rendered as button values, which leaves the controls effectively locked.
+    return (
+        gr.Button("Accept proposed verdict", interactive=interactive),
+        gr.Button("Reject proposed verdict", interactive=interactive),
+        gr.Button("Request a focused re-investigation", interactive=interactive),
+    )
 
 
-def disable_review_controls() -> tuple[dict, dict, dict]:
+def disable_review_controls() -> tuple[gr.Button, gr.Button, gr.Button]:
     """Disable the review controls immediately when a new pass starts.
 
     Without this, buttons left enabled by a prior verdict would stay
@@ -305,7 +350,8 @@ def run_investigation(
     material_preview_rendered = False
     for event in stream_investigation(mystery_text, llm, uploaded_files):
         if event.kind is InvestigationEventKind.VALIDATION_ERROR:
-            yield event.message or "", "", "", "", "", "", None
+            message = event.message or "The supplied case material could not be investigated."
+            yield f"ERROR — Input validation failed: {message}", "", "", "", "", "", None
             return
         transcript_lines.append(_progress_label(event))
         if not material_preview_rendered and event.case_file is not None:
@@ -341,7 +387,8 @@ def run_reinvestigation(
     try:
         for event in stream_reinvestigation(case_file, request.note, llm):
             if event.kind is InvestigationEventKind.VALIDATION_ERROR:
-                transcript_lines.append(event.message or "")
+                message = event.message or "The re-investigation request could not be processed."
+                transcript_lines.append(f"ERROR — Input validation failed: {message}")
                 yield ("\n".join(transcript_lines), *_render_panels(case_file), case_file)
                 return
             if event.kind is InvestigationEventKind.REINVESTIGATION_REQUESTED:
@@ -352,39 +399,289 @@ def run_reinvestigation(
         yield ("\n".join(transcript_lines), *_render_panels(case_file), case_file)
 
 
+def run_investigation_view(
+    mystery_text: str,
+    provider: str | None = None,
+    uploaded_files: list[str] | None = None,
+) -> Iterator[tuple[str, str, str, str, str, str, str, str, CaseFile | None]]:
+    """Adapt pipeline updates to the distinct live UI surfaces."""
+    for update in run_investigation(mystery_text, provider, uploaded_files):
+        transcript, *panels, case_file = update
+        yield (
+            render_agent_activity(transcript),
+            render_investigation_errors(transcript),
+            transcript,
+            *panels,
+            case_file,
+        )
+
+
+def run_reinvestigation_view(
+    case_file: CaseFile | None,
+    transcript_markdown: str,
+    request: ReinvestigationRequest | str,
+) -> Iterator[tuple[str, str, str, str, str, str, str, str, CaseFile | None]]:
+    """Adapt re-investigation updates to the distinct live UI surfaces."""
+    for update in run_reinvestigation(case_file, transcript_markdown, request):
+        transcript, *panels, updated_case_file = update
+        yield (
+            render_agent_activity(transcript),
+            render_investigation_errors(transcript),
+            transcript,
+            *panels,
+            updated_case_file,
+        )
+
+
+INTERFACE_CSS = """
+:root {
+    color-scheme: dark;
+    --sherlok-ink: #f1f7f8;
+    --sherlok-muted: #9fb2bd;
+    --sherlok-line: #294151;
+    --sherlok-surface: #0d1c29;
+    --sherlok-surface-raised: #122433;
+    --sherlok-input: #091722;
+    --sherlok-canvas: #07131d;
+    --sherlok-accent: #20c7bd;
+    --sherlok-accent-hover: #3bd6cc;
+    --sherlok-alert: #f19a89;
+    --body-background-fill: var(--sherlok-canvas);
+    --body-text-color: var(--sherlok-ink);
+    --block-background-fill: var(--sherlok-surface);
+    --block-border-color: var(--sherlok-line);
+    --block-label-text-color: var(--sherlok-ink);
+    --input-background-fill: var(--sherlok-input);
+    --input-border-color: var(--sherlok-line);
+    --input-placeholder-color: var(--sherlok-muted);
+    --input-text-color: var(--sherlok-ink);
+    --button-primary-background-fill: var(--sherlok-accent);
+    --button-primary-text-color: #031817;
+    --button-secondary-background-fill: var(--sherlok-surface-raised);
+    --button-secondary-text-color: var(--sherlok-ink);
+}
+.dark, html, body {
+    background: var(--sherlok-canvas) !important;
+    color: var(--sherlok-ink) !important;
+}
+body {
+    background-image:
+        radial-gradient(circle at 12% -10%, rgba(32, 199, 189, .12), transparent 28rem),
+        radial-gradient(circle at 92% 12%, rgba(28, 71, 102, .2), transparent 34rem) !important;
+    background-attachment: fixed !important;
+}
+.gradio-container {
+    max-width: 1440px !important;
+    margin: 0 auto !important;
+    padding-top: 1.5rem !important;
+    background: transparent !important;
+    color: var(--sherlok-ink) !important;
+    color-scheme: dark;
+    font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif !important;
+}
+.gradio-container .prose,
+.gradio-container .prose *,
+.gradio-container label,
+.gradio-container p { color: var(--sherlok-ink) !important; }
+.gradio-container textarea,
+.gradio-container input,
+.gradio-container select,
+.gradio-container .wrap {
+    background-color: var(--sherlok-input) !important;
+    border-color: var(--sherlok-line) !important;
+    color: var(--sherlok-ink) !important;
+}
+.gradio-container textarea::placeholder,
+.gradio-container input::placeholder { color: var(--sherlok-muted) !important; }
+#sherlok-header {
+    align-items: center;
+    gap: 1.1rem;
+    margin-bottom: 1.25rem;
+    padding: .35rem .25rem 1.25rem;
+    border-bottom: 1px solid var(--sherlok-line);
+}
+#sherlok-logo {
+    flex: 0 0 5.75rem !important;
+    width: 5.75rem !important;
+    min-width: 5.75rem !important;
+    height: 5.75rem !important;
+    background: transparent !important;
+}
+#sherlok-logo img {
+    object-fit: contain !important;
+    filter: drop-shadow(0 .8rem 1.4rem rgba(0, 7, 14, .38));
+}
+#sherlok-title { flex: 1 1 32rem; }
+#sherlok-title .sherlok-kicker {
+    margin: 0 0 .35rem;
+    color: var(--sherlok-accent) !important;
+    font-size: .76rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
+#sherlok-title h1 {
+    margin: 0;
+    color: var(--sherlok-ink);
+    font-size: clamp(2.1rem, 5vw, 3.65rem);
+    font-weight: 700;
+    line-height: .98;
+    letter-spacing: -.055em;
+}
+#sherlok-title .sherlok-subtitle {
+    max-width: 62ch;
+    margin: .65rem 0 0;
+    color: var(--sherlok-muted) !important;
+    font-size: 1rem;
+    line-height: 1.55;
+    text-wrap: pretty;
+}
+#intake-panel, #status-panel, #verdict-panel {
+    background: rgba(13, 28, 41, .92);
+    border: 1px solid var(--sherlok-line);
+    border-radius: 14px;
+    box-shadow: 0 1.25rem 3.5rem rgba(0, 8, 15, .2);
+    padding: 1.1rem;
+}
+#agent-activity, #investigation-errors, #investigation-log {
+    border-left: 3px solid var(--sherlok-accent);
+    padding-left: .85rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+#agent-activity, #investigation-log { max-height: 17rem; overflow-y: auto; }
+#investigation-errors { border-left-color: var(--sherlok-alert); min-height: 3.25rem; }
+#review-actions { gap: .65rem; flex-wrap: wrap; }
+#review-actions button { min-width: 11rem; }
+.gradio-container button {
+    background: var(--sherlok-surface-raised) !important;
+    border-color: var(--sherlok-line) !important;
+    color: var(--sherlok-ink) !important;
+    transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.gradio-container button.primary {
+    background: var(--sherlok-accent) !important;
+    color: #031817 !important;
+}
+.gradio-container button:hover {
+    background: #183144 !important;
+    border-color: #3b5b6e !important;
+}
+.gradio-container button.primary:hover {
+    background: var(--sherlok-accent-hover) !important;
+}
+.gradio-container button:focus-visible,
+.gradio-container input:focus-visible,
+.gradio-container textarea:focus-visible,
+.gradio-container select:focus-visible {
+    outline: 3px solid rgba(32, 199, 189, .4) !important;
+    outline-offset: 2px;
+}
+button:active { transform: translateY(1px); }
+@media (max-width: 768px) {
+    .gradio-container { padding-left: .75rem !important; padding-right: .75rem !important; }
+    #sherlok-header { gap: .8rem; }
+    #sherlok-logo {
+        flex-basis: 4.5rem !important;
+        width: 4.5rem !important;
+        min-width: 4.5rem !important;
+        height: 4.5rem !important;
+    }
+    #intake-panel, #status-panel, #verdict-panel { padding: .8rem; }
+    #review-actions button { width: 100%; }
+}
+"""
+
+
 def build_interface() -> gr.Blocks:
-    with gr.Blocks(title="Sherlok") as interface:
-        gr.Markdown("# Sherlok")
-        mystery_input = gr.Textbox(
-            label="Mystery text",
-            placeholder="Paste a fictional mystery to investigate...",
-            lines=10,
-        )
-        material_upload = gr.File(
-            label="Case materials (PDF, DOCX, Markdown, or plain text)",
-            file_count="multiple",
-            file_types=[".pdf", ".docx", ".md", ".markdown", ".txt"],
-            type="filepath",
-        )
-        provider_input = gr.Dropdown(
-            choices=list(SUPPORTED_PROVIDERS), value=default_provider(), label="Provider"
-        )
-        start_button = gr.Button("Start investigation")
-        transcript = gr.Markdown(label="Investigation transcript")
-        evidence_table = gr.Markdown(label="Collected evidence")
-        suspect_profiles = gr.Markdown(label="Suspect profiles")
-        timeline = gr.Markdown(label="Timeline analysis")
-        skeptic_panel = gr.Markdown(label="Skeptic review")
-        verdict_panel = gr.Markdown(label="Verdict")
-        with gr.Row():
-            accept_button = gr.Button("Accept", interactive=False)
-            reject_button = gr.Button("Reject", interactive=False)
-        guidance_input = gr.Textbox(
-            label="Guidance note for re-investigation",
-            placeholder="e.g. Evidence E-03 is unavailable; do not rely on it.",
-            lines=3,
-        )
-        reinvestigate_button = gr.Button("Request re-investigation", interactive=False)
+    with gr.Blocks(title=APP_TITLE) as interface:
+        with gr.Row(equal_height=True, elem_id="sherlok-header"):
+            gr.Image(
+                value=str(LOGO_PATH),
+                format="png",
+                image_mode="RGBA",
+                height=92,
+                width=92,
+                show_label=False,
+                buttons=[],
+                container=False,
+                interactive=False,
+                alt_text="Sherlok detective logo",
+                elem_id="sherlok-logo",
+            )
+            gr.HTML(
+                """
+                <header aria-label="Sherlok application">
+                    <p class="sherlok-kicker">Multi-agent case investigator</p>
+                    <h1>Sherlok</h1>
+                    <p class="sherlok-subtitle">
+                        Turn fictional case material into traceable evidence, challenged analysis,
+                        and a human-reviewed verdict.
+                    </p>
+                </header>
+                """,
+                elem_id="sherlok-title",
+            )
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=5, elem_id="intake-panel"):
+                gr.Markdown("## 1. Add case material\nPaste text, upload documents, or use both.")
+                mystery_input = gr.Textbox(
+                    label="Fictional mystery text",
+                    placeholder="Paste the fictional mystery that the detectives should investigate...",
+                    info="This is the source material for the case file.",
+                    lines=10,
+                )
+                material_upload = gr.File(
+                    label="Supporting case files",
+                    file_count="multiple",
+                    file_types=[".pdf", ".docx", ".md", ".markdown", ".txt"],
+                    type="filepath",
+                )
+                provider_input = gr.Dropdown(
+                    choices=list(SUPPORTED_PROVIDERS), value=default_provider(), label="Provider"
+                )
+                start_button = gr.Button("Run investigation", variant="primary")
+            with gr.Column(scale=4, elem_id="status-panel"):
+                gr.Markdown("## 2. Follow the investigation")
+                gr.Markdown("### Agent activity")
+                activity_panel = gr.Markdown(
+                    "_Waiting for an investigation to start._", elem_id="agent-activity"
+                )
+                gr.Markdown("### Errors requiring attention")
+                error_panel = gr.Markdown(
+                    "_No errors reported. If a stage cannot continue, its name and reason appear here._",
+                    elem_id="investigation-errors",
+                )
+                with gr.Accordion("Full event log", open=False):
+                    transcript = gr.Markdown(elem_id="investigation-log")
+
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=5):
+                with gr.Tabs():
+                    with gr.Tab("Evidence"):
+                        evidence_table = gr.Markdown("_Evidence will appear after collection._")
+                    with gr.Tab("Suspect profiles"):
+                        suspect_profiles = gr.Markdown("_Profiles will appear after analysis._")
+                    with gr.Tab("Timeline"):
+                        timeline = gr.Markdown("_Timeline analysis will appear here._")
+                    with gr.Tab("Skeptic review"):
+                        skeptic_panel = gr.Markdown("_Skeptic findings will appear here._")
+            with gr.Column(scale=4, elem_id="verdict-panel"):
+                gr.Markdown("## 3. Review the proposed verdict\nThe detectives propose; you decide.")
+                verdict_panel = gr.Markdown("_No verdict yet._")
+                gr.Markdown("### Record your decision")
+                with gr.Row(elem_id="review-actions"):
+                    accept_button = gr.Button("Accept proposed verdict", interactive=False)
+                    reject_button = gr.Button("Reject proposed verdict", interactive=False)
+                guidance_input = gr.Textbox(
+                    label="Guidance for re-investigation",
+                    placeholder="Describe the evidence or question the next pass should address.",
+                    info="Required only when requesting a focused re-investigation.",
+                    lines=3,
+                )
+                reinvestigate_button = gr.Button(
+                    "Request a focused re-investigation", interactive=False
+                )
         case_file_state = gr.State(None)
         reinvestigation_request_state = gr.State(
             ReinvestigationRequest(note="", provider=default_provider())
@@ -407,9 +704,11 @@ def build_interface() -> gr.Blocks:
             fn=disable_review_controls,
             outputs=review_outputs,
         ).then(
-            fn=run_investigation,
+            fn=run_investigation_view,
             inputs=[mystery_input, provider_input, material_upload],
             outputs=[
+                activity_panel,
+                error_panel,
                 transcript,
                 evidence_table,
                 suspect_profiles,
@@ -438,9 +737,11 @@ def build_interface() -> gr.Blocks:
             fn=disable_review_controls,
             outputs=review_outputs,
         ).then(
-            fn=run_reinvestigation,
+            fn=run_reinvestigation_view,
             inputs=[case_file_state, transcript, reinvestigation_request_state],
             outputs=[
+                activity_panel,
+                error_panel,
                 transcript,
                 evidence_table,
                 suspect_profiles,
@@ -463,7 +764,7 @@ def build_interface() -> gr.Blocks:
 def launch_interface() -> None:
     """Launch Gradio with a container-safe host and configurable port."""
     port = int(os.environ.get("PORT", "7860"))
-    build_interface().launch(server_name="0.0.0.0", server_port=port)
+    build_interface().launch(server_name="0.0.0.0", server_port=port, css=INTERFACE_CSS)
 
 
 if __name__ == "__main__":

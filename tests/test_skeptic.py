@@ -32,6 +32,16 @@ class StubLLM:
         return self.response
 
 
+@dataclass
+class SequentialResponseLLM:
+    responses: list[dict]
+    prompts: list[str] = field(default_factory=list)
+
+    def call_llm(self, prompt: str, system: str, response_schema: dict) -> dict:
+        self.prompts.append(prompt)
+        return self.responses.pop(0)
+
+
 def _case_file_with_specialist_output() -> CaseFile:
     case_file = CaseFile(mystery_text="A necklace vanished from the study overnight.")
     case_file.evidence = [
@@ -132,6 +142,111 @@ def test_skeptic_records_findings_naming_specialist_and_claim() -> None:
     assert finding.specialist is Specialist.SUSPECT_ANALYST
     assert finding.claim == "The key card used at midnight proves she was in the study."
     assert finding.kind is SkepticFindingKind.UNSUPPORTED_REASONING
+
+
+def test_skeptic_accepts_an_exact_claim_embedded_in_a_rendered_line() -> None:
+    rendered_claim = "- Opportunity: The key card used at midnight proves she was in the study. (E-01)"
+    llm = SequentialResponseLLM(
+        responses=[
+            {
+                "findings": [
+                    {
+                        "specialist": "suspect_analyst",
+                        "claim": rendered_claim,
+                        "kind": "unsupported_reasoning",
+                        "explanation": "Card use does not identify the card holder.",
+                    }
+                ]
+            }
+        ]
+    )
+
+    Skeptic(llm).run(_case_file_with_specialist_output())
+
+    assert len(llm.prompts) == 1
+
+
+def test_skeptic_accepts_a_rendered_claim_without_the_markdown_bullet() -> None:
+    claim = (
+        "Mara had access to the control room through authorized keycard use, "
+        "but the access record does not identify the card holder, so her direct "
+        "entry is not proven."
+    )
+    case_file = _case_file_with_specialist_output()
+    case_file.suspect_profiles[0].opportunity = (
+        Claim(
+            statement=claim,
+            status=ClaimStatus.SUPPORTED,
+            evidence_ids=("E-17", "E-43", "E-44", "E-59"),
+        ),
+    )
+    response = {
+        "findings": [
+            {
+                "specialist": "suspect_analyst",
+                "claim": f"Opportunity: {claim} (E-17, E-43, E-44, E-59)",
+                "kind": "unsupported_reasoning",
+                "explanation": "Keycard authorization does not prove entry.",
+            }
+        ]
+    }
+    llm = SequentialResponseLLM(responses=[response, response])
+
+    Skeptic(llm).run(case_file)
+
+    assert len(llm.prompts) == 1
+    assert case_file.skeptic_reviews[0].findings[0].claim == claim
+
+
+def test_skeptic_accepts_typographic_apostrophe_normalization_in_rendered_claim() -> None:
+    timeline_claim = (
+        "At 6:03 PM, the control-room door was opened by Imani’s keycard; "
+        "the record shows card use, not who held the card, and the earlier card "
+        "handoff statements could explain why Imani’s card was in another person’s hands."
+    )
+    rendered_claim = (
+        "Event: At 6:03 PM, the control-room door was opened by Imani's keycard; "
+        "the record shows card use, not who held the card, and the earlier card "
+        "handoff statements could explain why Imani's card was in another person's "
+        "hands. (E-34, E-35, E-12, E-13, E-19, E-21, E-29, E-30)"
+    )
+    case_file = _case_file_with_specialist_output()
+    case_file.timeline = Timeline(
+        events=[
+            TimelineEvent(
+                statement=timeline_claim,
+                time="6:03 PM",
+                order=1,
+                status=ClaimStatus.SUPPORTED,
+                evidence_ids=(
+                    "E-34",
+                    "E-35",
+                    "E-12",
+                    "E-13",
+                    "E-19",
+                    "E-21",
+                    "E-29",
+                    "E-30",
+                ),
+            )
+        ]
+    )
+    response = {
+        "findings": [
+            {
+                "specialist": "timeline_reconciler",
+                "claim": rendered_claim,
+                "kind": "unsupported_reasoning",
+                "explanation": "Card use does not identify the holder.",
+            }
+        ]
+    }
+    llm = SequentialResponseLLM(responses=[response, response])
+
+    Skeptic(llm).run(case_file)
+
+    assert len(llm.prompts) == 1
+    assert case_file.skeptic_reviews[0].findings[0].claim == timeline_claim
 
 
 def test_skeptic_rejects_finding_that_cites_an_unknown_claim() -> None:

@@ -1,6 +1,8 @@
 # Python and Gradio Conventions
 
-Rules for the Python/Gradio application planned in this repository.
+Legacy rules for the delivered Gradio reference adapter. New presentation work
+uses `python-nextjs-conventions.md`. Keep this file only while Gradio remains as
+a migration-parity reference.
 
 ## Boundaries and Types
 

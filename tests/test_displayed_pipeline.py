@@ -8,7 +8,7 @@ from types import ModuleType
 import pytest
 
 try:
-    import gradio  # noqa: F401
+    import gradio
 except ModuleNotFoundError:
     sys.modules["gradio"] = ModuleType("gradio")
 
@@ -122,6 +122,11 @@ class FailingAtLLM:
                 "response is missing required field 'evidence'."
             )
         return self._display_llm.call_llm(prompt, system, response_schema)
+
+
+def _interactive(update: gradio.Button) -> bool:
+    """Read the public Gradio component-update payload."""
+    return bool(update.get_config()["interactive"])
 
 
 class OrderedDisplayLLM(DisplayLLM):
@@ -306,17 +311,17 @@ def test_sync_review_controls_disabled_before_a_verdict_exists() -> None:
 
     accept_update, reject_update, reinvestigate_update = app.sync_review_controls(case_file)
 
-    assert accept_update["interactive"] is False
-    assert reject_update["interactive"] is False
-    assert reinvestigate_update["interactive"] is False
+    assert _interactive(accept_update) is False
+    assert _interactive(reject_update) is False
+    assert _interactive(reinvestigate_update) is False
 
 
 def test_sync_review_controls_disabled_when_case_file_is_none() -> None:
     accept_update, reject_update, reinvestigate_update = app.sync_review_controls(None)
 
-    assert accept_update["interactive"] is False
-    assert reject_update["interactive"] is False
-    assert reinvestigate_update["interactive"] is False
+    assert _interactive(accept_update) is False
+    assert _interactive(reject_update) is False
+    assert _interactive(reinvestigate_update) is False
 
 
 def test_sync_review_controls_enabled_while_verdict_awaits_review() -> None:
@@ -324,9 +329,9 @@ def test_sync_review_controls_enabled_while_verdict_awaits_review() -> None:
 
     accept_update, reject_update, reinvestigate_update = app.sync_review_controls(case_file)
 
-    assert accept_update["interactive"] is True
-    assert reject_update["interactive"] is True
-    assert reinvestigate_update["interactive"] is True
+    assert _interactive(accept_update) is True
+    assert _interactive(reject_update) is True
+    assert _interactive(reinvestigate_update) is True
 
 
 def test_sync_review_controls_disabled_once_verdict_is_decided() -> None:
@@ -335,9 +340,9 @@ def test_sync_review_controls_disabled_once_verdict_is_decided() -> None:
 
     accept_update, reject_update, reinvestigate_update = app.sync_review_controls(case_file)
 
-    assert accept_update["interactive"] is False
-    assert reject_update["interactive"] is False
-    assert reinvestigate_update["interactive"] is False
+    assert _interactive(accept_update) is False
+    assert _interactive(reject_update) is False
+    assert _interactive(reinvestigate_update) is False
 
 
 def test_sync_review_controls_disabled_once_reinvestigation_is_requested() -> None:
@@ -346,9 +351,9 @@ def test_sync_review_controls_disabled_once_reinvestigation_is_requested() -> No
 
     accept_update, reject_update, reinvestigate_update = app.sync_review_controls(case_file)
 
-    assert accept_update["interactive"] is False
-    assert reject_update["interactive"] is False
-    assert reinvestigate_update["interactive"] is False
+    assert _interactive(accept_update) is False
+    assert _interactive(reject_update) is False
+    assert _interactive(reinvestigate_update) is False
 
 
 def test_handle_accept_verdict_records_decision_and_disables_controls() -> None:
@@ -360,9 +365,9 @@ def test_handle_accept_verdict_records_decision_and_disables_controls() -> None:
 
     assert updated_case_file.verdict.review_status is VerdictReviewStatus.ACCEPTED
     assert "Human decision: Accepted." in verdict_markdown
-    assert accept_update["interactive"] is False
-    assert reject_update["interactive"] is False
-    assert reinvestigate_update["interactive"] is False
+    assert _interactive(accept_update) is False
+    assert _interactive(reject_update) is False
+    assert _interactive(reinvestigate_update) is False
 
 
 def test_handle_reject_verdict_records_decision_and_disables_controls() -> None:
@@ -374,17 +379,17 @@ def test_handle_reject_verdict_records_decision_and_disables_controls() -> None:
 
     assert updated_case_file.verdict.review_status is VerdictReviewStatus.REJECTED
     assert "Human decision: Rejected." in verdict_markdown
-    assert accept_update["interactive"] is False
-    assert reject_update["interactive"] is False
-    assert reinvestigate_update["interactive"] is False
+    assert _interactive(accept_update) is False
+    assert _interactive(reject_update) is False
+    assert _interactive(reinvestigate_update) is False
 
 
 def test_disable_review_controls_always_disables_all_three_buttons() -> None:
     accept_update, reject_update, reinvestigate_update = app.disable_review_controls()
 
-    assert accept_update["interactive"] is False
-    assert reject_update["interactive"] is False
-    assert reinvestigate_update["interactive"] is False
+    assert _interactive(accept_update) is False
+    assert _interactive(reject_update) is False
+    assert _interactive(reinvestigate_update) is False
 
 
 def test_handle_accept_verdict_with_no_case_file_is_a_predictable_no_op() -> None:
@@ -394,9 +399,9 @@ def test_handle_accept_verdict_with_no_case_file_is_a_predictable_no_op() -> Non
 
     assert verdict_markdown == "_No verdict yet._"
     assert updated_case_file is None
-    assert accept_update["interactive"] is False
-    assert reject_update["interactive"] is False
-    assert reinvestigate_update["interactive"] is False
+    assert _interactive(accept_update) is False
+    assert _interactive(reject_update) is False
+    assert _interactive(reinvestigate_update) is False
 
 
 def test_repeated_accept_after_reject_does_not_flip_the_recorded_decision() -> None:
@@ -409,9 +414,9 @@ def test_repeated_accept_after_reject_does_not_flip_the_recorded_decision() -> N
 
     assert updated_case_file.verdict.review_status is VerdictReviewStatus.REJECTED
     assert "Human decision: Rejected." in verdict_markdown
-    assert accept_update["interactive"] is False
-    assert reject_update["interactive"] is False
-    assert reinvestigate_update["interactive"] is False
+    assert _interactive(accept_update) is False
+    assert _interactive(reject_update) is False
+    assert _interactive(reinvestigate_update) is False
 
 
 @pytest.mark.parametrize("first_specialist", ["timeline", "suspect"])
@@ -542,6 +547,20 @@ def test_run_investigation_shows_a_visible_sanitized_step_failure_in_the_transcr
     assert case_file.evidence == []
     assert evidence == "_No evidence collected yet._"
     assert verdict == "_No verdict yet._"
+
+
+def test_ui_view_adapter_separates_agent_activity_from_a_named_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(app, "EnvLLMClient", lambda: FailingAtLLM("Evidence Collector"))
+
+    updates = list(app.run_investigation_view("A lens vanished from an observatory."))
+
+    activity, errors, transcript, *_ = updates[-1]
+    assert "Evidence Collector is reading the case." in activity
+    assert "ERROR —" not in activity
+    assert "Evidence Collector step failed" in errors
+    assert "ERROR — Evidence Collector step failed" in transcript
 
 
 def test_run_investigation_shows_a_missing_gemini_key_as_a_safe_step_failure(
