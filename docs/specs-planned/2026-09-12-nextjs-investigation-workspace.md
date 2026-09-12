@@ -1,168 +1,131 @@
-# Spec: Next.js Investigation Workspace
+# Spec: Next.js Investigation Workspace Wiring
 
 ## Problem Statement
 
-The delivered Gradio interface can run the investigation, but it does not give
-the intended product enough room to explain the workflow. A beginner needs to
-see what each agent is doing, how evidence supports claims, where agents work
-in parallel, when the Skeptic requests a revision, and why a verdict still
-requires human review.
+The Start Investigation screen accepts text and files, but it currently keeps
+them only in browser state. Its progress indicator is timed, not real, and it
+navigates to a placeholder Agent Workspace. A User cannot see what source
+material was accepted, what the Case File Curator normalized, or what the
+detective workflow is doing.
 
-The new Next.js scaffold and screen mock-ups are not connected to the tested
-Python pipeline. Without a stable seam, frontend work could duplicate domain
-rules, expose unsafe data, or drift from delivered behavior.
+The Python runtime already owns safe case-material curation and investigation
+orchestration. Reimplementing PDF, DOCX, Markdown, and plain-text conversion
+in Next.js would create two sources of truth for canonical case material,
+source references, facilitator-only exclusion, and intake warnings.
 
 ## Solution
 
-Build the seven-view Next.js workspace defined in
-`sherlok-nextjs/public/Mock-Up/`. Keep the existing Python modules as the
-orchestration runtime. Add a typed Python application interface and expose it
-through REST commands, investigation snapshots, and a server-sent event
-stream. Route browser traffic through same-origin Next.js adapters.
+Wire the existing Next.js workspace to a small Python application interface.
+Next.js owns the browser upload experience, navigation, and rendering.
+Python owns case-material processing, case state, validation, agent execution,
+and provider configuration.
 
-The Agent Workspace visualizes this sequence:
+A User submits pasted participant material and supported files through a
+same-origin Next.js command route. The route forwards supplied bytes and the
+selected provider to Python. Python uses the Case File Curator to produce
+canonical case material, starts an investigation, and returns an opaque
+investigation ID. The workspace reads an Investigation Snapshot and follows
+safe Investigation Events until human review.
 
 ```text
-Prepare case material
-        |
-        v
-Collect evidence
-        |
-        +--------------------+
-        v                    v
-Analyze suspects      Reconcile timeline
-        +----------+---------+
-                   v
-             Skeptic review
-                   |
-          optional bounded revision
-                   v
-             Synthesize verdict
-                   |
-                   v
-               Human review
+Browser -> Next.js upload and presentation adapter -> Python application interface
+                                                   -> Case File Curator
+                                                   -> detective workflow
 ```
-
-Each workflow node shows a public status, a short result summary, timing when
-available, and related evidence IDs. The UI must not show hidden model
-reasoning. Evidence IDs open the matching evidence detail and provide a return
-path to the originating claim.
 
 ## User Stories
 
-1. As a User, I want to add case material and see safe validation, so that I
-   know what the investigation will use.
-2. As a User, I want to watch agent stages change from queued to working to
-   completed, so that I understand how the result is produced.
-3. As a User, I want parallel work and the bounded revision path shown
-   visually, so that multi-agent orchestration is concrete rather than hidden.
-4. As a User, I want each displayed claim linked to evidence, so that I can
-   inspect its support and source.
-5. As a User, I want failures and uncertainty shown in plain language, so that
-   the interface does not manufacture progress or certainty.
-6. As a User, I want to review, accept, reject, or request re-investigation, so
-   that the human remains the decision-maker.
-
-## Behavior Contract
-
-- Start accepts pasted text, supported participant files, or both, plus a
-  configured provider name. It returns an opaque investigation ID.
-- Snapshot returns canonical source blocks, current workflow stages, evidence,
-  specialist outputs, Skeptic findings, proposed verdict, and human decision.
-- Events are ordered and resumable within the lifetime of the in-memory demo.
-  Each event has an event ID, investigation ID, event type, stage, public
-  status, timestamp, safe message, and optional evidence IDs.
-- Supported public statuses are `queued`, `working`, `completed`, `revising`,
-  `failed`, and `awaiting_review`.
-- The frontend may render only evidence and source references present in the
-  snapshot. Unknown references produce a visible contract error.
-- Decision accepts `accept` or `reject` only while a verdict awaits review.
-- Re-investigation requires a non-empty guidance note and restarts at the two
-  specialist branches without rerunning evidence collection.
-- Provider credentials and model settings remain server-side.
-- Facilitator-only material, hidden chain-of-thought, raw provider output,
-  tracebacks, and upload paths never cross the seam.
+1. As a User, I want to paste participant case material, so that I can begin without preparing a file.
+2. As a User, I want to add PDF, DOCX, Markdown, and plain-text files, so that I can investigate material I already have.
+3. As a User, I want to use pasted material and files together, so that one case file can include all supplied sources.
+4. As a User, I want unsupported files rejected before submission, so that I can correct input quickly.
+5. As a User, I want real submission and curation progress, so that I do not mistake an animation for completed work.
+6. As a User, I want a safe explanation when a file is unreadable, encrypted, empty, or needs OCR, so that I know what to replace.
+7. As a User, I want to see canonical case material and source references, so that I know exactly what agents can use.
+8. As a User, I want PDF blocks to show page locations, so that I can return to supplied material.
+9. As a User, I want uncertain table reconstruction clearly labeled, so that I do not treat extraction output as certainty.
+10. As a User, I want facilitator-only material excluded before investigation, so that the verdict remains a genuine evaluation.
+11. As a User, I want an investigation ID after valid submission, so that the workspace can recover its displayable state.
+12. As a User, I want the Agent Workspace to show queued, working, completed, revising, failed, and awaiting-review stages, so that the workflow is understandable.
+13. As a User, I want parallel specialist paths shown, so that I can see independent work.
+14. As a User, I want a Skeptic revision shown only for the specialist it flags, so that the one permitted revision round is clear.
+15. As a User, I want named stage failures to halt dependent stages visibly, so that the interface never invents progress.
+16. As a User, I want every displayed claim and verdict reason linked to evidence and safe source references, so that I can assess support.
+17. As a User, I want evidence, timeline, analysis, and proposed verdict views, so that each part of the case file is readable.
+18. As a User, I want the verdict labeled proposed until I decide, so that the system does not claim to make the final decision.
+19. As a User, I want to accept, reject, or request re-investigation with a guidance note, so that I remain responsible for the outcome.
+20. As a User, I want re-investigation to retain evidence and rerun only later stages, so that my guidance does not discard collected evidence.
+21. As a User, I want keyboard-accessible controls and text status in addition to color, so that the workspace is usable with assistive technology.
 
 ## Implementation Decisions
 
-- Decision: Keep Python as the orchestration runtime.
-  - Rationale: The tested agent and document-processing modules already have
-    strong locality and provider-agnostic seams.
-- Decision: Use Next.js as the only target presentation layer.
-  - Rationale: The seven-view dossier needs routing, responsive composition,
-    reusable evidence interactions, and richer live state.
-- Decision: Use REST for commands and snapshots and server-sent events for
-  live progress.
-  - Rationale: Progress is primarily server-to-browser. SSE is simpler than a
-    bidirectional socket and works with ordered event IDs and reconnection.
-- Decision: Proxy Python through the Next.js server.
-  - Rationale: The browser gets one origin and no internal backend address.
-- Decision: Keep an in-memory investigation store for the first slice.
-  - Rationale: Persistence and multi-instance recovery are not required for
-    the beginner demonstration. The limitation must be visible in docs.
-- Decision: Keep Gradio until critical-journey parity is demonstrated.
-  - Rationale: This preserves a working reference during migration and makes
-    removal a later cleanup rather than a flag-day rewrite.
+- Decision: Next.js owns browser interaction, file selection, client-side file-type feedback, navigation, and rendering of snapshots and events.
+  - Rationale: These are presentation concerns and fit the target workspace.
+- Decision: Python remains the only owner of Case File Curator and normalized case-material rules.
+  - Rationale: The Curator already converts PDFs through the pinned local `pdf-inspector` adapter, extracts DOCX directly, normalizes Markdown and text, creates safe source references, excludes facilitator-only material, and emits warnings. The browser must not duplicate this logic.
+- Decision: Remove the unused JavaScript `@firecrawl/pdf-inspector` dependency when the Next.js package is next updated.
+  - Rationale: Conversion runs in Python; retaining a second package suggests an unsupported second implementation.
+- Decision: Add one small Python application interface: start an investigation, read a snapshot, stream events, record a human decision, and request re-investigation.
+  - Rationale: This is the highest useful seam. It hides document processing, orchestration, provider SDKs, and transport details behind one case-centric interface.
+- Decision: Start accepts pasted text, uploaded file bytes with display names and media types, and a selected provider name, then returns an opaque investigation ID.
+  - Rationale: It maps directly to the Start Investigation form without exposing upload paths.
+- Decision: Snapshots contain only displayable canonical material, warnings, workflow status, evidence, specialist results, Skeptic findings, verdict, and human decision.
+  - Rationale: The workspace must never render raw provider output, credentials, hidden reasoning, tracebacks, facilitator-only material, or filesystem paths.
+- Decision: Use REST for commands and snapshots, server-sent events for ordered live progress, and Next.js server routes as the browser-facing proxy.
+  - Rationale: The browser receives one origin and no internal runtime address. Progress is one-way and recoverable through snapshot reads.
+- Decision: Keep the first investigation store in memory and visibly state that it lasts only for the running demo process.
+  - Rationale: Durable persistence is not required for this beginner demonstration.
+- Decision: Replace the Start screen timer with real command state and replace the Agent Workspace placeholder with a snapshot-and-event projection.
+  - Rationale: UI status must reflect actual Curator and orchestrator behavior.
+- Decision: Use one versioned transport schema to generate or validate TypeScript transport types.
+  - Rationale: FastAPI's versioned OpenAPI document is the transport schema source for the Python adapter and the future TypeScript client. Python and TypeScript must not maintain equivalent shapes by memory.
+- Decision: Keep Gradio as a reference adapter until the Next.js critical journey reaches behavior parity.
+  - Rationale: The delivered Python flow remains reliable during migration.
 
 ## Acceptance Criteria
 
-- A user can submit valid case material in Next.js and receive an investigation ID.
-- The Agent Workspace updates without a manual refresh as Python emits events.
-- The branch into Suspect Analyst and Timeline Reconciler and the later join are visible.
-- A Skeptic revision visibly returns only the flagged specialist and occurs at most once.
-- Every displayed claim and verdict reason retains its evidence IDs.
-- Selecting an evidence ID opens its evidence and safe source references.
-- A named stage failure stops dependent stages and appears without secrets or raw provider data.
-- The verdict is labeled proposed and awaits Accept, Reject, or Re-investigation.
-- Re-investigation requires guidance and does not rerun Evidence Collection.
-- A second unrelated mystery passes the same journey without Aurora-specific UI behavior.
-- Keyboard navigation and screen-reader text do not rely on color alone.
-- The current deterministic Python suite remains green throughout migration.
+- Valid pasted material, supported files, or both start an investigation and return an opaque ID.
+- Next.js displays canonical case material and sanitized intake warnings returned by Python.
+- PDF page references and table-uncertainty labels remain visible.
+- Unusable material produces a safe validation result and does not start Evidence Collection.
+- Facilitator-only material never appears in snapshots, events, rendered UI, or agent input.
+- The workspace updates from real ordered events without manual refresh and recovers from missed events through a snapshot.
+- Every visible claim and verdict reason links to known evidence IDs and safe source references.
+- Stage errors stop dependent stages and show a named, sanitized recovery message.
+- A Skeptic revision is visible, targets only the flagged specialist, and occurs at most once.
+- The proposed verdict supports accept, reject, and guided re-investigation according to Python case-state rules.
+- A second unrelated fictional mystery completes the same journey without reference-case-specific UI behavior.
+- The browser never receives credentials, an internal Python URL, upload paths, hidden reasoning, raw provider output, tracebacks, or sealed content.
+
+## Dependencies and Implementation Slices
+
+- [x] Slice 1: Define the versioned Python application interface and transport schema. Add behavior tests for start, snapshot, events, decision, and re-investigation.
+- [x] Slice 2: Add the in-memory investigation store and Python REST/SSE adapter. Add contract tests for ordering, recovery, safe failures, and source-reference integrity.
+- [ ] Slice 3: Add Next.js same-origin route handlers and a typed server adapter. Replace simulated Start Investigation behavior with the real command and safe validation display.
+- [ ] Slice 4: Build the live Agent Workspace from snapshot and event projections, including parallel work, Skeptic revision, and failure states.
+- [ ] Slice 5: Connect Case Overview, Evidence, Timeline, Analysis, and Proposed Verdict views with shared evidence navigation and human decisions.
+- [ ] Slice 6: Add the critical browser journey, prove parity against the reference adapter, update local run documentation, then plan Gradio retirement separately.
+
+Each slice requires explicit approval before implementation and publication as a native sub-issue.
 
 ## Testing Decisions
 
-- Test behavior through the Python application interface before HTTP.
-- Use a versioned OpenAPI or JSON Schema artifact as the Python/TypeScript
-  contract seam.
-- Add deterministic transport tests for event ordering, reconnection,
-  snapshots, decisions, failures, and safe data exposure.
-- Add frontend tests for state projections and evidence navigation.
-- Add one browser test for the full critical journey with a fake Python adapter.
-- Run the existing unrelated-case acceptance scenario through the new seam.
-
-## Implementation Slices
-
-- [ ] Define the Python application interface and versioned transport schemas.
-- [ ] Add the in-memory investigation store and REST/SSE adapter with contract tests.
-- [ ] Build the shared Next.js shell, typed adapter, workflow projection, and safe empty/error states.
-- [ ] Implement Start Investigation and Agent Workspace as the first vertical slice.
-- [ ] Implement Evidence, Timeline, and Analysis with shared evidence navigation.
-- [ ] Implement Case Overview and Proposed Verdict with human decisions and re-investigation.
-- [ ] Prove critical-journey parity, update run/deployment documentation, then remove Gradio.
-
-Slices require explicit approval before they are published as native GitHub
-sub-issues or implemented.
-
-## Dependencies
-
-- The existing provider-agnostic `llm_client.py` seam.
-- The existing `CaseFile` and orchestrator event behavior.
-- Approved screen contracts under `sherlok-nextjs/public/Mock-Up/`.
-- A Python web adapter dependency selected during slice 2.
+- Test behavior through the Python application interface, the highest shared seam. Observe submitted material, returned Investigation Snapshots, ordered Investigation Events, and human-decision outcomes; do not test private helpers, prompts, provider SDKs, or UI implementation state.
+- Reuse existing Curator behavior tests for PDF page locations, table warnings, OCR exclusion, sealed facilitator exclusion, DOCX and Markdown structure, and safe source references.
+- Add deterministic application-interface tests with a fake provider-neutral LLM for normal intake, mixed usable and unusable sources, invalid source references, event ordering, snapshot recovery, bounded revision, and re-investigation.
+- Add Python-to-Next.js transport contract tests from the versioned schema for every command, snapshot, event, and safe error.
+- Add React tests for real command states, sanitized warnings, snapshot projection, evidence navigation, keyboard behavior, and failure rendering.
+- Add one browser test of the complete public seam: submit a second unrelated fictional case, observe curation and agent progress, inspect a cited source, review the proposal, and request re-investigation.
+- Continue to run the deterministic Python suite without live provider calls.
 
 ## Out of Scope
 
-- Deliberately excluded: authentication, accounts, multi-user collaboration,
-  persistent case history, editable agent graphs, prompt editing, free-form
-  agent chat, hidden chain-of-thought, browser credential entry, and OCR.
-- Deferred: durable storage, background job infrastructure, multi-instance
-  event recovery, deployment automation, and Gradio removal before parity.
+- Deliberately excluded: browser-side PDF/DOCX conversion, browser credentials, direct browser-to-Python calls, OCR, authentication, accounts, multi-user collaboration, persistent case history, editable agent graphs, prompt editing, free-form agent chat, and hidden reasoning display.
+- Deferred: durable storage, background job infrastructure, multi-instance event recovery, deployment automation, and Gradio removal before demonstrated parity.
 
 ## Further Notes
 
-- Historical specifications in `docs/specs-implemented/` remain unchanged.
-  They describe the delivered Gradio behavior and are migration evidence, not
-  the target architecture.
-- The design uses interface depth deliberately: UI callers learn a small set
-  of operations while Python hides orchestration, provider, and validation
-  complexity behind them.
+- Canonical case material is untrusted supplied content. It is normalized for structure and traceability; the Curator does not perform detective reasoning.
+- `pdf-inspector` is a local Python adapter, not a hosted conversion call. OCR remains disabled.
+- Investigation state exists only in the running Python demo process. Restarting that process discards its Investigation Snapshots and events.
+- This master issue tracks approved slices. This specification remains active until all accepted slices ship or it is superseded.
