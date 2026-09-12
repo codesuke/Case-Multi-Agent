@@ -172,6 +172,12 @@ Sherlok is a desktop-first investigation workspace that feels like a well-kept d
 - Use shadcn/ui components and Radix primitives as the baseline for controls, then adapt their tokens, radii, borders, and states to this dossier system. Avoid bespoke replacements for standard form controls unless the component cannot support the requirement.
 - Use Framer Motion for isolated interactive UI transitions, layout changes, and state feedback. Respect `prefers-reduced-motion` and never make animation the only signal of progress or status.
 - Use GSAP only for isolated decorative or scroll-driven experiences that need timeline control. Do not combine GSAP and Framer Motion in the same component tree; clean up GSAP contexts on unmount.
+- Build overview and monitoring screens from shadcn-derived primitives first (buttons, cards, lists, disclosures, and status indicators). Adapt them into navigable dossier modules; do not introduce a new component library or bespoke interaction pattern for each screen.
+- Build evidence inspection around shadcn-derived search, filter, list, badge, and detail primitives. Keep evidence read-only, preserve the ID and classification beside the statement, and make source traceability visible before decorative treatment.
+- Build timeline views from shadcn-derived filter, list, badge, and detail primitives. Chronology must follow supplied reconciler order; visually and textually separate unordered events, gaps, and contradictions from confirmed sequence.
+- Build analysis views from shadcn-derived tabs, cards, badges, citations, and detail panels. Keep claims and Skeptic findings as structured, inspectable outputs; never imply guilt, invent support, or expose agent reasoning beyond those outputs.
+- Build orchestration views from shadcn-derived status, list, select, card, and progress primitives. Make dependency order and parallel work inspectable, distinguish stages from agents, and expose only structured inputs, outputs, and observable activity.
+- Build verdict review from shadcn-derived cards, status badges, citations, and decision controls. Keep a generated proposal visibly distinct from the irreversible human decision, and require explicit confirmation or non-empty re-investigation guidance.
 
 The supplied reference screens define three related views: an evidence workspace, a live orchestration workspace, and a proposed-verdict review. Use real investigation data and case-local evidence IDs; the names, numbers, dates, and identifiers visible in the source images are illustrative only.
 
