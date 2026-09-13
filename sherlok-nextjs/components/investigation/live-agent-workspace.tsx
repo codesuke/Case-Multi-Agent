@@ -68,6 +68,10 @@ const WORKFLOW_STEPS: WorkflowStep[] = [
 ];
 
 export function LiveAgentWorkspace({ investigationId }: { investigationId: string }) {
+  return <LiveWorkspaceForInvestigation key={investigationId} investigationId={investigationId} />;
+}
+
+function LiveWorkspaceForInvestigation({ investigationId }: { investigationId: string }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [events, setEvents] = useState<InvestigationEvent[]>([]);
   const [failure, setFailure] = useState<string | null>(null);

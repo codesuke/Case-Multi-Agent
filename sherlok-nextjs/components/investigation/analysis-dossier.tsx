@@ -69,7 +69,7 @@ export function AnalysisDossier({ caseFile, investigationId, isComplete }: Analy
             onSelect={setSelectedClaimDomId}
           />
         ) : (
-          <SkepticReviews claims={claims} reviews={caseFile.skeptic_reviews ?? []} onFocusClaim={focusClaim} />
+          <SkepticReviews claims={claims} isComplete={isComplete} reviews={caseFile.skeptic_reviews ?? []} onFocusClaim={focusClaim} />
         )}
       </section>
     </main>
@@ -165,13 +165,17 @@ function ClaimGroup({ claims, investigationId, group, profileIndex, selectedClai
   );
 }
 
-function SkepticReviews({ claims, reviews, onFocusClaim }: {
+function SkepticReviews({ claims, isComplete, reviews, onFocusClaim }: {
   claims: ClaimTarget[];
+  isComplete: boolean;
   reviews: components["schemas"]["SkepticReview"][];
   onFocusClaim: (target: ClaimTarget) => void;
 }) {
   if (reviews.length === 0) {
-    return <p className="mt-6 rounded border border-[#d8c4a0] bg-[#fbf2de] p-5" role="status">Skeptic review has not started yet.</p>;
+    const message = isComplete
+      ? "No Skeptic reviews were reported for this Case File."
+      : "Skeptic review has not started yet.";
+    return <p className="mt-6 rounded border border-[#d8c4a0] bg-[#fbf2de] p-5" role="status">{message}</p>;
   }
 
   return (

@@ -140,6 +140,11 @@ test("every investigation result route renders the current Investigation Snapsho
     await expect(page.getByText("The available evidence most strongly supports a restricted-access scenario.", { exact: true })).toHaveCount(0);
   }
 
+  await page.goto(`/case/evidence?investigation_id=${investigationId}`);
+  await expect(page.getByText("Evidence Collector", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Evidence extracted", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Ready for analysis", { exact: true })).toHaveCount(0);
+
   await page.goto(`/case/agents?investigation_id=${investigationId}`);
   await expect(page).toHaveURL(new RegExp(`/agent-workspace\\?investigation_id=${investigationId}`));
   await expect(page.getByRole("heading", { name: "Agent Workspace" })).toBeVisible();
@@ -256,6 +261,15 @@ test("completed empty Case File sections are not presented as pending", async ({
   await page.goto(`/case/overview?investigation_id=${investigationId}`);
   await expect(page.getByText("No source material is available in this Case File.")).toBeVisible();
   await expect(page.getByText("Material is still being prepared.")).toHaveCount(0);
+
+  await page.goto(`/case/evidence?investigation_id=${investigationId}`);
+  await expect(page.getByText("The completed Case File does not include displayable source material.")).toBeVisible();
+  await expect(page.getByText("Material is still being prepared.")).toHaveCount(0);
+
+  await page.goto(`/case/analysis?investigation_id=${investigationId}`);
+  await page.getByRole("tab", { name: "Skeptic review" }).click();
+  await expect(page.getByText("No Skeptic reviews were reported for this Case File.")).toBeVisible();
+  await expect(page.getByText("Skeptic review has not started yet.")).toHaveCount(0);
 
   await page.goto(`/case/verdict?investigation_id=${investigationId}`);
   await expect(page.getByRole("heading", { name: "No proposed Verdict" })).toBeVisible();
