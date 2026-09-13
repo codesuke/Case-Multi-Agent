@@ -55,7 +55,18 @@ function WorkspaceBody({ caseFile, investigationId, isComplete, view, onSnapshot
   if (view === "timeline") return <TimelineDossier caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />;
   if (view === "analysis") return <AnalysisDossier caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />;
 
-  return <main className="min-h-screen bg-[#f4e8d0] p-6 text-[#1e2831] sm:p-10"><header className="mx-auto max-w-5xl border-b border-[#b89b6e] pb-5"><p className="text-sm font-semibold uppercase tracking-wide text-[#745022]">Investigation case file</p><h1 className="mt-1 font-serif text-4xl font-semibold">{titleFor(view)}</h1><CaseNavigation currentView={view} investigationId={investigationId} /></header><section className="mx-auto mt-6 max-w-5xl">{view === "verdict" && <Verdict caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} onSnapshot={onSnapshot} />}</section></main>;
+  return (
+    <main className="min-h-screen bg-[#f4e8d0] p-6 text-[#1e2831] sm:p-10">
+      <header className="mx-auto max-w-5xl border-b border-[#b89b6e] pb-5">
+        <p className="text-sm font-semibold uppercase tracking-wide text-[#745022]">Investigation case file</p>
+        <h1 className="mt-1 font-serif text-4xl font-semibold">{titleFor(view)}</h1>
+        <CaseNavigation currentView={view} investigationId={investigationId} />
+      </header>
+      <section className="mx-auto mt-6 max-w-5xl">
+        {view === "verdict" && <Verdict caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} onSnapshot={onSnapshot} />}
+      </section>
+    </main>
+  );
 }
 function Verdict({ caseFile, investigationId, isComplete, onSnapshot }: { caseFile: CaseFile; investigationId: string; isComplete: boolean; onSnapshot: (snapshot: Snapshot) => void }) {
   const router = useRouter();
@@ -92,7 +103,35 @@ function Verdict({ caseFile, investigationId, isComplete, onSnapshot }: { caseFi
     }
   }
 
-  return <section><p className="text-sm font-semibold uppercase tracking-wide text-[#745022]">Proposed verdict · {verdict.review_status.replaceAll("_", " ")}</p><h2 className="mt-2 font-serif text-3xl">Confidence: {verdict.confidence}</h2><ol className="mt-5 space-y-4">{verdict.conclusions.map((conclusion) => <li className="rounded border border-[#d8c4a0] bg-[#fbf2de] p-4" key={conclusion.rank}><b>#{conclusion.rank}: {conclusion.suspect}</b><p className="mt-2">{conclusion.explanation}</p><EvidenceLinks ids={conclusion.evidence_ids} investigationId={investigationId} /></li>)}</ol><h3 className="mt-8 font-serif text-2xl">What remains uncertain</h3><ul className="mt-2 list-disc pl-5">{verdict.limitations.map((item) => <li key={item}>{item}</li>)}</ul>{verdict.review_status === "awaiting_review" && <div className="mt-8 flex flex-wrap gap-3"><button className="rounded bg-[#006b54] px-4 py-2 font-semibold text-white disabled:opacity-50" disabled={busy} onClick={() => void command("decision", { action: "accept" })}>Accept proposal</button><button className="rounded border border-[#745022] px-4 py-2 font-semibold disabled:opacity-50" disabled={busy} onClick={() => void command("decision", { action: "reject" })}>Reject proposal</button><label className="flex flex-1 gap-2"><span className="sr-only">Guidance note</span><input className="min-w-56 flex-1 rounded border border-[#745022] px-3" onChange={(event) => setNote(event.target.value)} placeholder="Required guidance note" value={note} /><button className="rounded bg-[#7b4696] px-4 py-2 font-semibold text-white disabled:opacity-50" disabled={busy || !note.trim()} onClick={() => void command("reinvestigation", { note: note.trim() })}>Request re-investigation</button></label></div>}{message && <p className="mt-4" role="status">{message}</p>}</section>;
+  return (
+    <section>
+      <p className="text-sm font-semibold uppercase tracking-wide text-[#745022]">Proposed verdict · {verdict.review_status.replaceAll("_", " ")}</p>
+      <h2 className="mt-2 font-serif text-3xl">Confidence: {verdict.confidence}</h2>
+      <ol className="mt-5 space-y-4">
+        {verdict.conclusions.map((conclusion) => (
+          <li className="rounded border border-[#d8c4a0] bg-[#fbf2de] p-4" key={conclusion.rank}>
+            <b>#{conclusion.rank}: {conclusion.suspect}</b>
+            <p className="mt-2">{conclusion.explanation}</p>
+            <EvidenceLinks ids={conclusion.evidence_ids} investigationId={investigationId} />
+          </li>
+        ))}
+      </ol>
+      <h3 className="mt-8 font-serif text-2xl">What remains uncertain</h3>
+      <ul className="mt-2 list-disc pl-5">{verdict.limitations.map((item) => <li key={item}>{item}</li>)}</ul>
+      {verdict.review_status === "awaiting_review" && (
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button className="rounded bg-[#006b54] px-4 py-2 font-semibold text-white disabled:opacity-50" disabled={busy} onClick={() => void command("decision", { action: "accept" })}>Accept proposal</button>
+          <button className="rounded border border-[#745022] px-4 py-2 font-semibold disabled:opacity-50" disabled={busy} onClick={() => void command("decision", { action: "reject" })}>Reject proposal</button>
+          <label className="flex flex-1 gap-2">
+            <span className="sr-only">Guidance note</span>
+            <input className="min-w-56 flex-1 rounded border border-[#745022] px-3" onChange={(event) => setNote(event.target.value)} placeholder="Required guidance note" value={note} />
+            <button className="rounded bg-[#7b4696] px-4 py-2 font-semibold text-white disabled:opacity-50" disabled={busy || !note.trim()} onClick={() => void command("reinvestigation", { note: note.trim() })}>Request re-investigation</button>
+          </label>
+        </div>
+      )}
+      {message && <p className="mt-4" role="status">{message}</p>}
+    </section>
+  );
 }
 
 function EmptyVerdict({ isComplete }: { isComplete: boolean }) {
