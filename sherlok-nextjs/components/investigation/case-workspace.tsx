@@ -7,39 +7,44 @@ import { useEffect, useState } from "react";
 import { AnalysisDossier } from "@/components/investigation/analysis-dossier";
 import { CaseOverview } from "@/components/investigation/case-overview";
 import { CaseNavigation } from "@/components/investigation/case-navigation";
+import { TimelineDossier } from "@/components/investigation/timeline-dossier";
 import type { components } from "@/lib/generated/investigation-api.v1";
-import { asInvestigationSnapshot, safeFailureMessage } from "@/lib/investigation-contract";
+import { asInvestigationSnapshot, asSafeTransportFailure, safeFailureMessage } from "@/lib/investigation-contract";
 
 type Snapshot = components["schemas"]["InvestigationSnapshot"];
 type CaseFile = components["schemas"]["CaseFile"];
 type View = "overview" | "evidence" | "timeline" | "analysis" | "verdict";
+type WorkspaceFailure = { title: string; message: string };
 
 export function CaseWorkspace({ investigationId, view }: { investigationId: string; view: View }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failure, setFailure] = useState<WorkspaceFailure | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void fetch(`/api/investigations/${encodeURIComponent(investigationId)}`, { cache: "no-store" })
       .then(async (response) => {
         const body: unknown = await response.json();
-        if (!response.ok) throw new Error(messageFrom(body));
+        if (!response.ok) {
+          if (!cancelled) setFailure(workspaceFailure(response.status, body));
+          return;
+        }
         const snapshot = asInvestigationSnapshot(body);
         if (!snapshot) throw new Error("The case file data was incompatible. Refresh and try again.");
         if (!cancelled) setSnapshot(snapshot);
       })
-      .catch((error: unknown) => !cancelled && setFailure(error instanceof Error ? error.message : "The case file could not be loaded."));
+      .catch((error: unknown) => !cancelled && setFailure({ title: "Case file unavailable", message: error instanceof Error ? error.message : "The case file could not be loaded." }));
     return () => { cancelled = true; };
   }, [investigationId]);
 
-  if (failure) return <Notice title="Case file unavailable" message={failure} />;
+  if (failure) return <Notice title={failure.title} message={failure.message} />;
   if (!snapshot) return <Notice title="Loading case file" message="Retrieving the current investigation snapshot…" />;
   if (!snapshot.case_file) return <Notice title="No displayable case file" message="The investigation has not produced a displayable snapshot yet." />;
 
   return <WorkspaceBody caseFile={snapshot.case_file} investigationId={investigationId} isComplete={snapshot.is_complete} view={view} onSnapshot={setSnapshot} />;
 }
 
-function WorkspaceBody({ caseFile, investigationId, isComplete, view, onSnapshot }: { caseFile: CaseFile; investigationId: string; isComplete: boolean; view: View; onSnapshot: (snapshot: Snapshot) => void }) { if (view === "overview") return <CaseOverview caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />; if (view === "analysis") return <AnalysisDossier caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />;
+function WorkspaceBody({ caseFile, investigationId, isComplete, view, onSnapshot }: { caseFile: CaseFile; investigationId: string; isComplete: boolean; view: View; onSnapshot: (snapshot: Snapshot) => void }) { if (view === "overview") return <CaseOverview caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />; if (view === "timeline") return <TimelineDossier caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />; if (view === "analysis") return <AnalysisDossier caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />;
   return <main className="min-h-screen bg-[#f4e8d0] p-6 text-[#1e2831] sm:p-10"><header className="mx-auto max-w-5xl border-b border-[#b89b6e] pb-5"><p className="text-sm font-semibold uppercase tracking-wide text-[#745022]">Investigation case file</p><h1 className="mt-1 font-serif text-4xl font-semibold">{titleFor(view)}</h1><CaseNavigation currentView={view} investigationId={investigationId} /></header><section className="mx-auto mt-6 max-w-5xl">{view === "overview" && <Overview caseFile={caseFile} />}{view === "evidence" && <Evidence caseFile={caseFile} />}{view === "timeline" && <Timeline caseFile={caseFile} investigationId={investigationId} />}{view === "verdict" && <Verdict caseFile={caseFile} investigationId={investigationId} onSnapshot={onSnapshot} />}</section></main>;
 }
 
@@ -54,3 +59,5 @@ function referenceLabel(reference: components["schemas"]["SourceReference"]) { r
 function titleFor(view: View) { return ({ overview: "Case overview", evidence: "Evidence", timeline: "Timeline", analysis: "Analysis", verdict: "Proposed verdict" })[view]; }
 function caseHref(view: View, investigationId: string) { return `/case/${view}?investigation_id=${encodeURIComponent(investigationId)}`; }
 function messageFrom(value: unknown) { return safeFailureMessage(value, "The case file could not be loaded."); }
+
+function workspaceFailure(status: number, value: unknown): WorkspaceFailure { const transportFailure = asSafeTransportFailure(value); const message = transportFailure ? `${transportFailure.detail.message} ${transportFailure.detail.recovery_action}` : messageFrom(value); return status === 404 ? { title: "Investigation not found", message } : { title: "Case file unavailable", message }; }
