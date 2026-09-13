@@ -51,15 +51,78 @@ function SourcePanel({ sources, caseFile, href, isComplete }: { sources: string[
     ? "The completed Case File does not include displayable source material."
     : "Material is still being prepared.";
 
-  return <section className="mt-6 rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-4 text-[#1e2831]"><h2 className="flex items-center gap-3 font-serif text-xl font-semibold"><FileText className="size-6" />Source material</h2>{sources.length ? sources.map((name) => <Link href={href} key={name} className="mt-3 flex items-center gap-5 rounded-lg border border-[#d8c4a0] p-4 hover:bg-[#f4e8d0]"><span className="grid size-20 place-items-center border border-[#b89b6e] bg-[#f4e8d0]"><FileText className="size-9" /></span><span className="flex-1"><b className="block font-serif text-lg">{name}</b><span className="text-sm">Participant material · {caseFile.material_blocks?.filter((block) => block.source_reference.source_name === name).length ?? 1} canonical blocks</span></span><span className="rounded-md border border-[#b89b6e] px-3 py-2 text-sm font-semibold">Open material</span></Link>) : <p className="mt-3 text-sm text-[#5c5145]">{emptyMessage}</p>}</section>;
+  return (
+    <section className="mt-6 rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-4 text-[#1e2831]">
+      <h2 className="flex items-center gap-3 font-serif text-xl font-semibold"><FileText className="size-6" />Source material</h2>
+      {sources.length ? sources.map((name) => (
+        <Link href={href} key={name} className="mt-3 flex items-center gap-5 rounded-lg border border-[#d8c4a0] p-4 hover:bg-[#f4e8d0]">
+          <span className="grid size-20 place-items-center border border-[#b89b6e] bg-[#f4e8d0]"><FileText className="size-9" /></span>
+          <span className="flex-1">
+            <b className="block font-serif text-lg">{name}</b>
+            <span className="text-sm">Participant material · {caseFile.material_blocks?.filter((block) => block.source_reference.source_name === name).length ?? 1} canonical blocks</span>
+          </span>
+          <span className="rounded-md border border-[#b89b6e] px-3 py-2 text-sm font-semibold">Open material</span>
+        </Link>
+      )) : <p className="mt-3 text-sm text-[#5c5145]">{emptyMessage}</p>}
+    </section>
+  );
 }
 function EvidenceTable({ items, selectedId, onSelect }: { items: Evidence[]; selectedId?: string; onSelect: (id: string) => void }) { return <div className="mt-3 overflow-x-auto rounded-lg border border-[#745022]"><table className="w-full min-w-[700px] text-left text-sm"><thead className="border-b border-[#745022] text-[#e9d8bb]"><tr><th className="w-12 p-4">ID</th><th className="p-4">Statement</th><th className="p-4">Classification</th><th className="p-4">Source reference</th><th className="p-4"><span className="sr-only">Open detail</span></th></tr></thead><tbody>{items.map((item) => <tr id={`evidence-${item.id}`} key={item.id} tabIndex={-1} className={`border-b border-[#745022]/70 outline-none last:border-0 focus:bg-[#145149]/55 focus:outline focus:outline-2 focus:outline-[#f4b941] ${item.id === selectedId ? "bg-[#145149]/55 outline outline-1 outline-[#18afa3]" : "hover:bg-[#382315]"}`}><td className="p-4 font-mono font-semibold">{item.id}</td><td className="max-w-[320px] p-4 leading-5">{item.statement}</td><td className="p-4"><Badge classification={item.classification} /></td><td className="p-4">{item.source_references[0] ? <span className="flex items-center gap-2"><FileText className="size-5" />{referenceLabel(item.source_references[0])}</span> : <span className="text-[#d8c4a0]">Source reference pending</span>}</td><td className="p-4"><button aria-label={`Inspect Evidence ${item.id}`} className="rounded p-1 hover:bg-[#5a3b18] focus:outline focus:outline-2 focus:outline-[#f4b941]" onClick={() => onSelect(item.id)} type="button"><MoreHorizontal className="size-5" /></button></td></tr>)}</tbody></table></div>; }
 function Badge({ classification }: { classification: Evidence["classification"] }) { const fact = classification === "observed_fact"; return <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${fact ? "border-[#18afa3] bg-[#006b54]/50 text-[#64f3e6]" : "border-[#f4b941] bg-[#704a00]/50 text-[#ffd66d]"}`}><span className="size-2.5 rounded-full bg-current" />{fact ? "Observed fact" : "Inference"}</span>; }
-function EvidenceDetail({ item, onClose }: { item: Evidence; onClose: () => void }) { return <section className="mt-3 rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-5 text-[#1e2831]"><header className="flex items-center gap-4 border-b border-[#d8c4a0] pb-3"><h2 className="font-serif text-2xl font-semibold">{item.id}</h2><Badge classification={item.classification} /><button aria-label="Close evidence detail" className="ml-auto" onClick={onClose}><X /></button></header><div className="grid gap-5 pt-5 md:grid-cols-[1.5fr_1fr]"><div><h3 className="font-semibold">Statement</h3><p className="mt-2 leading-6">{item.statement}</p><h3 className="mt-5 border-t border-[#d8c4a0] pt-4 font-semibold">Details</h3><p className="mt-2 leading-6 text-[#514e4b]">This Evidence item is read-only and uses only the current Case File.</p></div><div className="border-[#d8c4a0] md:border-l md:pl-5"><h3 className="font-semibold">Source reference</h3>{item.source_references.length ? item.source_references.map((reference, index) => <p className="mt-3 flex gap-2" key={index}><FileText className="size-5 shrink-0" /><span>{referenceLabel(reference)}</span></p>) : <p className="mt-2 text-sm text-[#5c5145]">A source reference has not been supplied.</p>}</div></div></section>; }
-function CaseFileRail({ caseFile, href }: { caseFile: CaseFile; href: string }) {
-  return <aside className="space-y-4">{caseFile.material_warnings?.length ? <section className="rounded-lg border border-[#a4493f] bg-[#432015] p-5"><h2 className="flex items-center gap-3 text-lg font-semibold text-[#ff9a91]"><CircleAlert />Material warning</h2><p className="mt-4 text-sm leading-5">{caseFile.material_warnings.join(" ")}</p></section> : null}<section className="rounded-lg border border-[#745022] bg-[#24160e]/85 p-5"><h2 className="flex items-center gap-3 border-b border-[#745022] pb-4 font-serif text-xl"><ListFilter />Next step</h2><Link href={href} className="mt-5 flex items-center gap-3 font-semibold text-[#f4b941]">Review specialist analysis <ChevronDown className="-rotate-90" /></Link><p className="mt-2 pl-9 text-sm leading-5">Analyze how the evidence supports or conflicts with key claims.</p></section></aside>;
+function EvidenceDetail({ item, onClose }: { item: Evidence; onClose: () => void }) {
+  return (
+    <section className="mt-3 rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-5 text-[#1e2831]">
+      <header className="flex items-center gap-4 border-b border-[#d8c4a0] pb-3">
+        <h2 className="font-serif text-2xl font-semibold">{item.id}</h2>
+        <Badge classification={item.classification} />
+        <button aria-label="Close evidence detail" className="ml-auto" onClick={onClose}><X /></button>
+      </header>
+      <div className="grid gap-5 pt-5 md:grid-cols-[1.5fr_1fr]">
+        <div>
+          <h3 className="font-semibold">Statement</h3>
+          <p className="mt-2 leading-6">{item.statement}</p>
+          <h3 className="mt-5 border-t border-[#d8c4a0] pt-4 font-semibold">Details</h3>
+          <p className="mt-2 leading-6 text-[#514e4b]">This Evidence item is read-only and uses only the current Case File.</p>
+        </div>
+        <div className="border-[#d8c4a0] md:border-l md:pl-5">
+          <h3 className="font-semibold">Source reference</h3>
+          {item.source_references.length ? item.source_references.map((reference, index) => (
+            <p className="mt-3 flex gap-2" key={index}><FileText className="size-5 shrink-0" /><span>{referenceLabel(reference)}</span></p>
+          )) : <p className="mt-2 text-sm text-[#5c5145]">A source reference has not been supplied.</p>}
+        </div>
+      </div>
+    </section>
+  );
 }
-function NoEvidence({ complete, hasFilters, clear }: { complete: boolean; hasFilters: boolean; clear: () => void }) { const title = hasFilters ? "No Evidence matches those filters" : complete ? "No collected evidence" : "Evidence collection is in progress"; const message = hasFilters ? "Try a different search or clear the current filters." : complete ? "Evidence collection completed without producing displayable Evidence items." : "Collected Evidence will appear here when it is available."; return <section className="mt-3 rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-8 text-center text-[#1e2831]"><h2 className="font-serif text-2xl">{title}</h2><p className="mt-2">{message}</p>{hasFilters && <button className="mt-4 rounded border border-[#745022] px-4 py-2 font-semibold" onClick={clear}>Clear filters</button>}</section>; }
+function CaseFileRail({ caseFile, href }: { caseFile: CaseFile; href: string }) {
+  return (
+    <aside className="space-y-4">
+      {caseFile.material_warnings?.length ? (
+        <section className="rounded-lg border border-[#a4493f] bg-[#432015] p-5">
+          <h2 className="flex items-center gap-3 text-lg font-semibold text-[#ff9a91]"><CircleAlert />Material warning</h2>
+          <p className="mt-4 text-sm leading-5">{caseFile.material_warnings.join(" ")}</p>
+        </section>
+      ) : null}
+      <section className="rounded-lg border border-[#745022] bg-[#24160e]/85 p-5">
+        <h2 className="flex items-center gap-3 border-b border-[#745022] pb-4 font-serif text-xl"><ListFilter />Next step</h2>
+        <Link href={href} className="mt-5 flex items-center gap-3 font-semibold text-[#f4b941]">Review specialist analysis <ChevronDown className="-rotate-90" /></Link>
+        <p className="mt-2 pl-9 text-sm leading-5">Analyze how the evidence supports or conflicts with key claims.</p>
+      </section>
+    </aside>
+  );
+}
+function NoEvidence({ complete, hasFilters, clear }: { complete: boolean; hasFilters: boolean; clear: () => void }) {
+  const title = hasFilters ? "No Evidence matches those filters" : complete ? "No collected evidence" : "Evidence collection is in progress";
+  const message = hasFilters ? "Try a different search or clear the current filters." : complete ? "Evidence collection completed without producing displayable Evidence items." : "Collected Evidence will appear here when it is available.";
+
+  return (
+    <section className="mt-3 rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-8 text-center text-[#1e2831]">
+      <h2 className="font-serif text-2xl">{title}</h2>
+      <p className="mt-2">{message}</p>
+      {hasFilters && <button className="mt-4 rounded border border-[#745022] px-4 py-2 font-semibold" onClick={clear}>Clear filters</button>}
+    </section>
+  );
+}
 function sourceNames(caseFile: CaseFile) { return [...new Set([...(caseFile.material_blocks ?? []).map((block) => block.source_reference.source_name), ...(caseFile.evidence ?? []).flatMap((item) => item.source_references.map((reference) => reference.source_name))].filter(Boolean))]; }
 function referenceLabel(reference: components["schemas"]["SourceReference"]) { const location = [reference.heading, reference.page && `page ${reference.page}`, reference.paragraph && `paragraph ${reference.paragraph}`, reference.list_position].filter(Boolean).join(", "); return location ? `${reference.source_name} · ${location}` : reference.source_name || "Source location available"; }
 function evidenceIdFromHash(hash: string) { const prefix = "#evidence-"; if (!hash.startsWith(prefix)) return null; const encodedId = hash.slice(prefix.length); try { return decodeURIComponent(encodedId); } catch { return null; } }

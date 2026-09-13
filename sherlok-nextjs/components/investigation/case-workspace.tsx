@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { AnalysisDossier } from "@/components/investigation/analysis-dossier";
 import { CaseOverview } from "@/components/investigation/case-overview";
 import { CaseNavigation } from "@/components/investigation/case-navigation";
+import { EvidenceDossier } from "@/components/investigation/evidence-dossier";
 import { TimelineDossier } from "@/components/investigation/timeline-dossier";
 import type { components } from "@/lib/generated/investigation-api.v1";
 import { asInvestigationSnapshot, asSafeTransportFailure, safeFailureMessage } from "@/lib/investigation-contract";
@@ -50,12 +51,12 @@ function CaseWorkspaceForInvestigation({ investigationId, view }: { investigatio
 
 function WorkspaceBody({ caseFile, investigationId, isComplete, view, onSnapshot }: { caseFile: CaseFile; investigationId: string; isComplete: boolean; view: View; onSnapshot: (snapshot: Snapshot) => void }) {
   if (view === "overview") return <CaseOverview caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />;
+  if (view === "evidence") return <EvidenceDossier caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />;
   if (view === "timeline") return <TimelineDossier caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />;
   if (view === "analysis") return <AnalysisDossier caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />;
 
-  return <main className="min-h-screen bg-[#f4e8d0] p-6 text-[#1e2831] sm:p-10"><header className="mx-auto max-w-5xl border-b border-[#b89b6e] pb-5"><p className="text-sm font-semibold uppercase tracking-wide text-[#745022]">Investigation case file</p><h1 className="mt-1 font-serif text-4xl font-semibold">{titleFor(view)}</h1><CaseNavigation currentView={view} investigationId={investigationId} /></header><section className="mx-auto mt-6 max-w-5xl">{view === "evidence" && <Evidence caseFile={caseFile} />}{view === "verdict" && <Verdict caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} onSnapshot={onSnapshot} />}</section></main>;
+  return <main className="min-h-screen bg-[#f4e8d0] p-6 text-[#1e2831] sm:p-10"><header className="mx-auto max-w-5xl border-b border-[#b89b6e] pb-5"><p className="text-sm font-semibold uppercase tracking-wide text-[#745022]">Investigation case file</p><h1 className="mt-1 font-serif text-4xl font-semibold">{titleFor(view)}</h1><CaseNavigation currentView={view} investigationId={investigationId} /></header><section className="mx-auto mt-6 max-w-5xl">{view === "verdict" && <Verdict caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} onSnapshot={onSnapshot} />}</section></main>;
 }
-function Evidence({ caseFile }: { caseFile: CaseFile }) { const evidence = caseFile.evidence ?? []; return <section><h2 className="font-serif text-2xl">Collected evidence</h2>{evidence.length === 0 ? <p className="mt-3">Evidence collection is still in progress.</p> : <ul className="mt-4 space-y-3">{evidence.map((item) => <li className="rounded border border-[#d8c4a0] bg-[#fbf2de] p-4" id={`evidence-${item.id}`} key={item.id}><b className="font-mono">{item.id}</b><span className="ml-3 text-sm">{item.classification === "observed_fact" ? "Observed fact" : "Inference"}</span><p className="mt-2">{item.statement}</p><p className="mt-2 text-sm text-[#5c5145]">{item.source_references.map(referenceLabel).join("; ")}</p></li>)}</ul>}</section>; }
 function Verdict({ caseFile, investigationId, isComplete, onSnapshot }: { caseFile: CaseFile; investigationId: string; isComplete: boolean; onSnapshot: (snapshot: Snapshot) => void }) {
   const router = useRouter();
   const verdict = caseFile.verdict;
@@ -101,7 +102,6 @@ function EmptyVerdict({ isComplete }: { isComplete: boolean }) {
 }
 function EvidenceLinks({ ids, investigationId }: { ids: string[]; investigationId: string }) { return <p className="mt-2 flex flex-wrap gap-2">{ids.map((id) => <Link className="rounded bg-[#d8d3ca] px-2 py-1 font-mono text-xs hover:underline" href={`/case/evidence?investigation_id=${encodeURIComponent(investigationId)}#evidence-${encodeURIComponent(id)}`} key={id}>{id}</Link>)}</p>; }
 function Notice({ title, message }: { title: string; message: string }) { return <main className="grid min-h-screen place-items-center bg-[#f4e8d0] p-6 text-center text-[#1e2831]"><div><h1 className="font-serif text-3xl">{title}</h1><p className="mt-3">{message}</p></div></main>; }
-function referenceLabel(reference: components["schemas"]["SourceReference"]) { return [reference.heading, reference.page && `page ${reference.page}`, reference.paragraph && `paragraph ${reference.paragraph}`, reference.list_position].filter(Boolean).join(" · ") || "Source location available"; }
 function titleFor(view: View) { return ({ overview: "Case overview", evidence: "Evidence", timeline: "Timeline", analysis: "Analysis", verdict: "Proposed verdict" })[view]; }
 function messageFrom(value: unknown) { return safeFailureMessage(value, "The case file could not be loaded."); }
 
