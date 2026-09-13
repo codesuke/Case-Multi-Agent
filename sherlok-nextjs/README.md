@@ -21,6 +21,9 @@ Copy [`.env.example`](.env.example) to the ignored `.env` file and set one
 provider's credentials. Both the Next.js server and the orchestration module
 read that one workspace-level file during local development.
 
+Gemini uses Google's supported `google-genai` Python SDK through the Python
+LLM boundary. The browser does not use a Gemini SDK or receive its API key.
+
 Then start the bundled orchestration module in one terminal:
 
 ```bash

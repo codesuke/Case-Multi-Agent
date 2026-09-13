@@ -213,19 +213,18 @@ def _validate_array(value: list, schema: dict, path: str) -> None:
 
 def _call_gemini(prompt: str, system: str, response_schema: dict) -> str:
     api_key = _required_api_key("GEMINI_API_KEY", "Gemini")
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        model_name=_optional_model("GEMINI_MODEL", _DEFAULT_GEMINI_MODEL),
-        system_instruction=system,
-    )
-    response = model.generate_content(
-        prompt,
-        generation_config={
-            "response_mime_type": "application/json",
-            "response_schema": response_schema,
-        },
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=_optional_model("GEMINI_MODEL", _DEFAULT_GEMINI_MODEL),
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=system,
+            response_mime_type="application/json",
+            response_schema=response_schema,
+        ),
     )
     return response.text
 
