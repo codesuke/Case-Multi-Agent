@@ -22,11 +22,11 @@ from investigation_application import (
     ReinvestigationRequest,
     StartedInvestigation,
     StartInvestigationRequest,
+    TRANSPORT_VERSION,
 )
 from orchestrator import EMPTY_GUIDANCE_MESSAGE
 from llm_client import EnvLLMClient, load_local_environment
 
-TRANSPORT_VERSION = "1.0.0"
 _Result = TypeVar("_Result")
 
 

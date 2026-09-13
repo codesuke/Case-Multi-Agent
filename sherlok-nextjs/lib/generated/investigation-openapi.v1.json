@@ -433,6 +433,12 @@
           "is_complete": {
             "title": "Is Complete",
             "type": "boolean"
+          },
+          "transport_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Transport Version",
+            "type": "string"
           }
         },
         "required": [
@@ -510,6 +516,12 @@
           "timestamp": {
             "format": "date-time",
             "title": "Timestamp",
+            "type": "string"
+          },
+          "transport_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Transport Version",
             "type": "string"
           }
         },

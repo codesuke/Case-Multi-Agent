@@ -3,6 +3,7 @@ import "server-only";
 import {
   asSafeTransportFailure,
   asStartedInvestigation,
+  asInvestigationSnapshot,
   transportFailure,
   type SafeTransportFailure,
   type StartInvestigationResult,
@@ -56,12 +57,25 @@ export async function proxyInvestigationRequest(
   }
 }
 
+/** Validate Python snapshots and command results before same-origin routes expose them. */
+export async function proxyValidatedSnapshot(
+  investigationId: string,
+  suffix = "",
+  init?: RequestInit,
+): Promise<Response> {
+  const response = await proxyInvestigationRequest(investigationId, suffix, init);
+  const body = await safeJson(response);
+  if (response.ok && asInvestigationSnapshot(body)) return Response.json(body, { status: response.status });
+  if (asSafeTransportFailure(body)) return Response.json(body, { status: response.status });
+  return Response.json(SERVICE_FAILURE, { status: 502 });
+}
+
 export async function proxyJsonCommand(
   investigationId: string,
   suffix: "/decision" | "/reinvestigation",
   body: string,
 ): Promise<Response> {
-  return proxyInvestigationRequest(investigationId, suffix, {
+  return proxyValidatedSnapshot(investigationId, suffix, {
     method: "POST",
     body,
     headers: { "content-type": "application/json" },

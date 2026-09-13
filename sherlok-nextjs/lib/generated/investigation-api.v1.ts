@@ -287,6 +287,12 @@ export interface components {
             investigation_id: string;
             /** Is Complete */
             is_complete: boolean;
+            /**
+             * Transport Version
+             * @default 1.0.0
+             * @constant
+             */
+            transport_version: "1.0.0";
         };
         /**
          * InvestigationStatus
@@ -321,6 +327,12 @@ export interface components {
              * Format: date-time
              */
             timestamp: string;
+            /**
+             * Transport Version
+             * @default 1.0.0
+             * @constant
+             */
+            transport_version: "1.0.0";
         };
         /**
          * ReinvestigationRequest

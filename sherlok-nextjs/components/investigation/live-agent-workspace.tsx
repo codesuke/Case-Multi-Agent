@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { components } from "@/lib/generated/investigation-api.v1";
-import { safeFailureMessage } from "@/lib/investigation-contract";
+import { asInvestigationSnapshot, asPublicInvestigationEvent, safeFailureMessage } from "@/lib/investigation-contract";
 
 type Snapshot = components["schemas"]["InvestigationSnapshot"];
 type InvestigationEvent = components["schemas"]["PublicInvestigationEvent"];
@@ -51,7 +51,8 @@ export function LiveAgentWorkspace({ investigationId }: { investigationId: strin
     const response = await fetch(`/api/investigations/${encodeURIComponent(investigationId)}`, { cache: "no-store" });
     const body: unknown = await response.json();
     if (!response.ok) throw new Error(messageFrom(body));
-    const snapshot = body as Snapshot;
+    const snapshot = asInvestigationSnapshot(body);
+    if (!snapshot) throw new Error("The investigation data was incompatible. Refresh the case file and try again.");
     setSnapshot(snapshot);
     return snapshot;
   }, [investigationId]);
@@ -71,7 +72,8 @@ export function LiveAgentWorkspace({ investigationId }: { investigationId: strin
     }
     function receive(message: MessageEvent<string>) {
       try {
-        const event = JSON.parse(message.data) as InvestigationEvent;
+        const event = asPublicInvestigationEvent(JSON.parse(message.data));
+        if (!event) throw new Error("Invalid investigation event");
         if (!active || event.event_id <= latestEventId.current) return;
         latestEventId.current = event.event_id;
         streamRetries.current = 0;

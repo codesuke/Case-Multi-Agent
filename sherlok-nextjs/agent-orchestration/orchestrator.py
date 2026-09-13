@@ -57,7 +57,7 @@ def _run_agent(agent_name: str, action: Callable[[], object]) -> None:
     """Run one agent step and surface unusable model output to the UI."""
     try:
         action()
-    except (LLMError, ValueError) as error:
+    except (LLMError, ValueError, KeyError, TypeError) as error:
         raise _StepFailed(agent_name, str(error)) from error
 
 
@@ -283,7 +283,7 @@ def _run_analysis_and_verdict(case_file: CaseFile, llm: LLMClient) -> Iterator[I
             completed_kind, agent_name = future_meta[future]
             try:
                 specialist_case_file = future.result()
-            except (LLMError, ValueError) as error:
+            except (LLMError, ValueError, KeyError, TypeError) as error:
                 raise _StepFailed(agent_name, str(error)) from error
             if completed_kind is InvestigationEventKind.SUSPECT_ANALYSIS_COMPLETED:
                 case_file.suspect_profiles = specialist_case_file.suspect_profiles

@@ -240,6 +240,22 @@ def test_openapi_document_is_the_versioned_transport_schema() -> None:
     assert "application/json" not in schema["paths"]["/v1/investigations/{investigation_id}/events"]["get"]["responses"]["200"]["content"]
 
 
+def test_snapshot_and_events_publish_the_declared_transport_version() -> None:
+    application = InvestigationApplication(lambda provider: _ContractLLM())
+    client = TestClient(create_api(application))
+    started = client.post(
+        "/v1/investigations",
+        data={"pasted_material": "The harbor bell stopped at dusk."},
+    )
+    investigation_id = started.json()["investigation_id"]
+
+    events = client.get(f"/v1/investigations/{investigation_id}/events")
+    snapshot = client.get(f"/v1/investigations/{investigation_id}")
+
+    assert snapshot.json()["transport_version"] == "1.0.0"
+    assert '"transport_version":"1.0.0"' in events.text
+
+
 def test_invalid_transport_input_uses_the_safe_error_contract() -> None:
     client = TestClient(create_api(InvestigationApplication(lambda provider: _ContractLLM())))
     started = client.post(

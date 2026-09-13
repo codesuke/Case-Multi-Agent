@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from threading import Condition, RLock, Thread
+from typing import Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -25,6 +26,9 @@ from orchestrator import (
 
 class InvestigationApplicationError(ValueError):
     """Raised when the application interface cannot fulfill a request."""
+
+
+TRANSPORT_VERSION = "1.0.0"
 
 
 class StartInvestigationRequest(BaseModel):
@@ -64,6 +68,7 @@ class ReinvestigationRequest(BaseModel):
 class InvestigationSnapshot(BaseModel):
     """The displayable projection of one case file at its current state."""
 
+    transport_version: Literal[TRANSPORT_VERSION] = TRANSPORT_VERSION
     investigation_id: str
     case_file: CaseFile | None = None
     is_complete: bool
@@ -83,6 +88,7 @@ class InvestigationStatus(str, Enum):
 class PublicInvestigationEvent(BaseModel):
     """One safe, ordered event that a presentation adapter can expose."""
 
+    transport_version: Literal[TRANSPORT_VERSION] = TRANSPORT_VERSION
     event_id: int = Field(ge=1)
     investigation_id: str
     event_type: str
