@@ -124,7 +124,7 @@ test("every investigation result route renders the current Investigation Snapsho
   await serveLiveInvestigation(page);
 
   const routes = [
-    ["/agent-workspace", "Clocktower synthesis completed."],
+    ["/agent-workspace", "Agent Workspace"],
     ["/case/overview", liveSnapshot.case_file.canonical_material],
     ["/case/evidence", liveSnapshot.case_file.evidence[0].statement],
     ["/case/timeline", liveSnapshot.case_file.timeline.events[0].statement],
