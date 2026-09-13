@@ -90,14 +90,6 @@ function LiveWorkspaceForInvestigation({ investigationId }: { investigationId: s
   }, [investigationId]);
 
   useEffect(() => {
-    latestEventId.current = 0;
-    streamRetries.current = 0;
-    setEvents([]);
-    setFailure(null);
-    setStreamNotice(null);
-  }, [investigationId]);
-
-  useEffect(() => {
     let active = true;
     let source: EventSource | null = null;
     async function refresh() {

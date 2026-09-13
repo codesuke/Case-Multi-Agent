@@ -8,10 +8,11 @@ import type { components } from "@/lib/generated/investigation-api.v1";
 
 type CaseFile = components["schemas"]["CaseFile"];
 type Evidence = components["schemas"]["EvidenceItem"];
+const EMPTY_EVIDENCE: Evidence[] = [];
 const nav = [["Overview", FolderOpen, "overview"], ["Evidence", FileText, "evidence"], ["Timeline", Timer, "timeline"], ["Analysis", Waypoints, "analysis"], ["Agent Workspace", Bot, "agents"], ["Proposed Verdict", Scale, "verdict"]] as const;
 
 export function EvidenceDossier({ caseFile, investigationId, isComplete }: { caseFile: CaseFile; investigationId: string; isComplete: boolean }) {
-  const evidence = caseFile.evidence ?? [];
+  const evidence = caseFile.evidence ?? EMPTY_EVIDENCE;
   const sources = sourceNames(caseFile);
   const [query, setQuery] = useState(""); const [classification, setClassification] = useState("all"); const [source, setSource] = useState("all"); const [selectedId, setSelectedId] = useState(evidence[0]?.id ?? "");
   const filtered = useMemo(() => evidence.filter((item) => (classification === "all" || item.classification === classification) && (source === "all" || item.source_references.some((reference) => reference.source_name === source)) && `${item.id} ${item.statement}`.toLowerCase().includes(query.toLowerCase())), [classification, evidence, query, source]);
