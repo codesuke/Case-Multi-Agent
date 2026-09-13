@@ -146,6 +146,12 @@ export function LiveAgentWorkspace({ investigationId }: { investigationId: strin
     return () => { active = false; source?.close(); };
   }, [investigationId, loadSnapshot, streamGeneration]);
 
+  if (!snapshot) {
+    return failure
+      ? <WorkspaceNotice message={failure} title="Investigation unavailable" tone="error" />
+      : <WorkspaceNotice message="Retrieving the current Investigation Snapshot…" title="Loading Agent Workspace" tone="status" />;
+  }
+
   async function requestContinuation(body: ContinuationCommand) {
     const response = await fetch(`/api/investigations/${encodeURIComponent(investigationId)}/continuation`, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
@@ -173,6 +179,18 @@ export function LiveAgentWorkspace({ investigationId }: { investigationId: strin
       <Workflow events={events} />
       <ActivityFeed events={events} />
       {snapshot?.case_file && <ContinuationChoices caseFile={snapshot.case_file as unknown} onContinue={requestContinuation} />}
+    </main>
+  );
+}
+
+function WorkspaceNotice({ message, title, tone }: { message: string; title: string; tone: "error" | "status" }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-[#24160e] p-6 text-center text-[#f8ebd2]">
+      <div>
+        <p className="text-sm font-semibold uppercase tracking-wide text-[#f4b941]">Live investigation</p>
+        <h1 className="mt-2 font-serif text-4xl">{title}</h1>
+        <p className="mt-3" role={tone === "error" ? "alert" : "status"}>{message}</p>
+      </div>
     </main>
   );
 }

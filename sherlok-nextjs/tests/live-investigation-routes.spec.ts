@@ -49,8 +49,21 @@ const liveSnapshot = {
         status: "supported",
         evidence_ids: ["CLOCK-2"],
       }],
-      issues: [],
+      issues: [{
+        kind: "gap",
+        statement: "The recital log does not identify who locked the platform.",
+        evidence_ids: ["CLOCK-2"],
+      }],
     },
+    skeptic_reviews: [{
+      outcome: "approved",
+      findings: [{
+        specialist: "suspect_analyst",
+        kind: "missing_citation",
+        claim: "The stage manager controlled access to the recital platform.",
+        explanation: "The access Claim needs continued Human review.",
+      }],
+    }],
     verdict: {
       confidence: 58,
       conclusions: [{
@@ -168,5 +181,104 @@ test("every investigation result route renders a safe recovery state", async ({ 
     await page.goto(`${route}?investigation_id=unknown-clocktower`);
     await expect(page.getByText(/The investigation was not found\./).first()).toBeVisible();
     await expect(page.getByText(liveSnapshot.case_file.canonical_material)).toHaveCount(0);
+  }
+});
+
+test("result workspaces reject transport failures and incompatible snapshots safely", async ({ page }) => {
+  await page.route("**/api/investigations/unavailable-clocktower", (route) => route.fulfill({
+    status: 503,
+    json: {
+      detail: {
+        stage: "investigation_service",
+        message: "The investigation service is unavailable.",
+        recovery_action: "Try again after the service restarts.",
+      },
+    },
+  }));
+  await page.goto("/case/evidence?investigation_id=unavailable-clocktower");
+  await expect(page.getByRole("heading", { name: "Case file unavailable" })).toBeVisible();
+  await expect(page.getByText(/Try again after the service restarts\./)).toBeVisible();
+
+  await page.route("**/api/investigations/incompatible-clocktower", (route) => route.fulfill({
+    json: { result: "not-an-investigation-snapshot" },
+  }));
+  await page.goto("/case/overview?investigation_id=incompatible-clocktower");
+  await expect(page.getByRole("heading", { name: "Case file unavailable" })).toBeVisible();
+  await expect(page.getByText(/case file data was incompatible/i)).toBeVisible();
+
+  await page.route("**/api/investigations/incompatible-agent", (route) => route.fulfill({
+    json: { result: "not-an-investigation-snapshot" },
+  }));
+  await page.route("**/api/investigations/incompatible-agent/events**", (route) => route.fulfill({
+    contentType: "text/event-stream",
+    body: "",
+  }));
+  await page.goto("/agent-workspace?investigation_id=incompatible-agent");
+  await expect(page.getByRole("heading", { name: "Investigation unavailable" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Workflow stages" })).toHaveCount(0);
+  await expect(page.getByText("Waiting for safe investigation events…")).toHaveCount(0);
+});
+
+test("Agent Workspace shows an honest loading state before its snapshot arrives", async ({ page }) => {
+  await page.route(
+    `**/api/investigations/${investigationId}`,
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      await route.fulfill({ json: liveSnapshot });
+    },
+  );
+  await page.route(
+    `**/api/investigations/${investigationId}/events**`,
+    (route) => route.fulfill({ contentType: "text/event-stream", body: "" }),
+  );
+
+  await page.goto(`/agent-workspace?investigation_id=${investigationId}`);
+  await expect(page.getByRole("heading", { name: "Loading Agent Workspace" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Workflow stages" })).toHaveCount(0);
+  await expect(page.getByText("Waiting for safe investigation events…")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Agent Workspace", exact: true })).toBeVisible();
+});
+
+test("completed empty Case File sections are not presented as pending", async ({ page }) => {
+  const completedEmptySnapshot = {
+    ...snapshot,
+    is_complete: true,
+    case_file: {
+      ...snapshot.case_file,
+      canonical_material: "",
+    },
+  };
+  await page.route(
+    `**/api/investigations/${investigationId}`,
+    (route) => route.fulfill({ json: completedEmptySnapshot }),
+  );
+
+  await page.goto(`/case/overview?investigation_id=${investigationId}`);
+  await expect(page.getByText("No source material is available in this Case File.")).toBeVisible();
+  await expect(page.getByText("Material is still being prepared.")).toHaveCount(0);
+
+  await page.goto(`/case/verdict?investigation_id=${investigationId}`);
+  await expect(page.getByRole("heading", { name: "No proposed Verdict" })).toBeVisible();
+  await expect(page.getByText("The investigation completed without a proposed Verdict.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Verdict pending" })).toHaveCount(0);
+});
+
+test("Case File navigation and Evidence targets preserve the investigation ID", async ({ page }) => {
+  await serveLiveInvestigation(page);
+  const evidenceTarget = `/case/evidence?investigation_id=${investigationId}#evidence-CLOCK-2`;
+
+  await page.goto(`/case/overview?investigation_id=${investigationId}`);
+  await expect(page.getByRole("link", { name: "Evidence", exact: true })).toHaveAttribute(
+    "href",
+    `/case/evidence?investigation_id=${investigationId}`,
+  );
+  await expect(page.getByRole("link", { name: "Agent Workspace", exact: true })).toHaveAttribute(
+    "href",
+    `/agent-workspace?investigation_id=${investigationId}`,
+  );
+
+  for (const route of ["timeline", "analysis", "verdict"]) {
+    await page.goto(`/case/${route}?investigation_id=${investigationId}`);
+    await expect(page.getByRole("link", { name: "CLOCK-2" }).first()).toHaveAttribute("href", evidenceTarget);
   }
 });
