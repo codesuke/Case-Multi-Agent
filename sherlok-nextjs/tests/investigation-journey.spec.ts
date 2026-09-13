@@ -249,6 +249,71 @@ test("shows a safe recovery message for an unknown investigation", async ({ page
   await expect(page.getByText("The investigation was not found.")).toBeVisible();
 });
 
+test("focuses a Skeptic finding's Claim and follows its cited Evidence", async ({ page }) => {
+  await page.route(`**/api/investigations/${investigationId}`, (route) => route.fulfill({ json: analysisSnapshot }));
+
+  await page.goto(`/case/analysis?investigation_id=${investigationId}`);
+  await page.getByRole("tab", { name: /Skeptic review/ }).click();
+  await expect(page.getByText("The stated motive needs stronger support.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Focus matching claim: The keeper needed the lantern to remain dark." }).click();
+  const claim = page.getByRole("button", { name: "Inspect claim: The keeper needed the lantern to remain dark." });
+  await expect(claim).toBeFocused();
+
+  const evidenceLink = page.getByRole("link", { name: "CLUE-7" });
+  await expect(evidenceLink).toHaveAttribute(
+    "href",
+    `/case/evidence?investigation_id=${investigationId}#evidence-CLUE-7`,
+  );
+  await evidenceLink.click();
+  await expect(page).toHaveURL(new RegExp(`/case/evidence\\?investigation_id=${investigationId}#evidence-CLUE-7`));
+});
+
+test("does not invent a Claim target or revision state", async ({ page }) => {
+  const snapshotWithUnmatchedFinding = {
+    ...analysisSnapshot,
+    is_complete: true,
+    case_file: {
+      ...analysisSnapshot.case_file,
+      suspect_profiles: [],
+      revised_specialists: [],
+      skeptic_reviews: [
+        {
+          outcome: "approved" as const,
+          findings: [
+            {
+              specialist: "timeline_reconciler" as const,
+              kind: "missing_citation" as const,
+              claim: "The log entry has no cited Evidence.",
+              explanation: "The timeline Claim is outside the displayed suspect profiles.",
+            },
+          ],
+        },
+      ],
+    },
+  };
+  await page.route(`**/api/investigations/${investigationId}`, (route) => route.fulfill({ json: snapshotWithUnmatchedFinding }));
+
+  await page.goto(`/case/analysis?investigation_id=${investigationId}`);
+  await expect(page.getByText("No suspect profiles are available. Skeptic findings are available in the Skeptic review tab.")).toBeVisible();
+  await expect(page.getByText("Suspect analysis has a reported revision.")).not.toBeVisible();
+  await page.getByRole("tab", { name: /Skeptic review/ }).click();
+  await expect(page.getByText("The timeline Claim is outside the displayed suspect profiles.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Focus matching claim/ })).toHaveCount(0);
+});
+
+test("shows a reported suspect-analysis revision", async ({ page }) => {
+  await page.route(`**/api/investigations/${investigationId}`, (route) => route.fulfill({
+    json: {
+      ...analysisSnapshot,
+      case_file: { ...analysisSnapshot.case_file, revised_specialists: ["suspect_analyst"] },
+    },
+  }));
+
+  await page.goto(`/case/analysis?investigation_id=${investigationId}`);
+  await expect(page.getByText("Suspect analysis has a reported revision.")).toBeVisible();
+});
+
 test("records a decision and sends guided re-investigation through the public commands", async ({ page }) => {
   const commands: { path: string; body: string }[] = [];
   await page.route(`**/api/investigations/${investigationId}/decision`, async (route) => {
