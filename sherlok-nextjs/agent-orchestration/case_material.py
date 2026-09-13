@@ -147,7 +147,7 @@ class CaseFileCurator:
 
 
 def input_from_upload(upload: str | object) -> CaseMaterialInput:
-    """Read a Gradio upload while retaining only a safe display name."""
+    """Read an uploaded file while retaining only a safe display name."""
     path = Path(str(getattr(upload, "name", upload)))
     return CaseMaterialInput(display_name=path.name, content=path.read_bytes())
 

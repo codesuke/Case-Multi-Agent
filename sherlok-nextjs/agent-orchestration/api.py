@@ -24,7 +24,7 @@ from investigation_application import (
     StartInvestigationRequest,
 )
 from orchestrator import EMPTY_GUIDANCE_MESSAGE
-from llm_client import EnvLLMClient
+from llm_client import EnvLLMClient, load_local_environment
 
 TRANSPORT_VERSION = "1.0.0"
 _Result = TypeVar("_Result")
@@ -49,6 +49,7 @@ _SAFE_FAILURE_RESPONSE = {status.HTTP_400_BAD_REQUEST: {"model": TransportFailur
 
 def create_api(application: InvestigationApplication | None = None) -> FastAPI:
     """Create the HTTP adapter without adding transport concerns to domain modules."""
+    load_local_environment()
     investigation_application = application or InvestigationApplication(EnvLLMClient)
     api = FastAPI(title="Sherlok Investigation API", version=TRANSPORT_VERSION)
 

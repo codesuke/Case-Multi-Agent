@@ -5,9 +5,9 @@ out
 coverage
 
 # Python bytecode and isolated environments are recreated in the image.
-python/__pycache__
-python/**/*.py[cod]
-python/.venv
+agent-orchestration/__pycache__
+agent-orchestration/**/*.py[cod]
+agent-orchestration/.venv
 
 # Source-control and local tooling metadata are not needed at runtime.
 .git

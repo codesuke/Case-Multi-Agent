@@ -13,8 +13,8 @@ the project clearer than you found it.
   authoritative reference case and facilitator evaluation material.
 - [GitHub master issue #1](https://github.com/codesuke/Sherlok/issues/1)
   — product requirements, behavior contracts, and work tracking.
-- `docs/specs-implemented/2026-09-11-sherlok-design.md` —
-  intended architecture.
+- `docs/specs-implemented/2026-09-13-nextjs-python-single-image.md` —
+  delivered application and deployment architecture.
 - `Architecture.md` — code layout and dependency boundaries.
 - `CONTEXT.md` — project-specific language.
 - `docs/agents/code-quality.md` and `docs/agents/python-nextjs-conventions.md`

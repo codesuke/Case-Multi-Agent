@@ -26,7 +26,7 @@ accepted — 2026-09-13
 
 ## Decision
 
-- `sherlok-nextjs/python/` contains the Python application interface, domain
+- `sherlok-nextjs/agent-orchestration/` contains the Python application interface, domain
   modules, agents, and production Python requirements used by the image.
 - `sherlok-nextjs/Dockerfile` builds the Next.js standalone output and Python
   virtual environment in separate stages, then combines their runtime artifacts
@@ -43,9 +43,10 @@ accepted — 2026-09-13
 - Deployment needs one image, one exposed port, and provider credentials only;
   it does not need Docker Compose or a second service URL.
 - Local development may still run the two processes separately for faster
-  feedback, using `python/requirements.txt` and `SHERLOK_PYTHON_API_URL`.
-- The bundled Python runtime is a deployment source snapshot. Until the
-  migration removes the former root-level runtime, changes to either copy must
-  be mirrored and verified for parity.
+  feedback, using `agent-orchestration/requirements.txt` and
+  `SHERLOK_PYTHON_API_URL`.
+- The bundled Python runtime is a deployment source snapshot. Until source
+  consolidation removes the former root-level runtime, changes to either copy
+  must be mirrored and verified for parity.
 - A single container runs two processes, which is intentionally scoped to this
   beginner-friendly demonstration and its requested deployment constraint.

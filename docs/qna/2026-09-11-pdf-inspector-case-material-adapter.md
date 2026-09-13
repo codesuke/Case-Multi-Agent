@@ -30,7 +30,7 @@ format-specific intake boundary specified in issue #23.
 | Scanned/image-only PDFs | Conditional | Native extraction identifies pages needing OCR. The original #23 scope explicitly defers OCR, so the first slice should show a warning and halt/exclude unusable pages rather than call OCR. |
 | Mixed PDFs | Good routing signal, not automatic fidelity | Per-page OCR reasons and confidence enable a visible warning for the affected pages. Do not silently merge incomplete pages into canonical case material. |
 | Privacy / untrusted uploads | Good if native-only | Native extraction keeps PDF bytes in the application process. Do not enable a hosted fallback or automatic OCR-model acquisition without an explicit product decision: OCR can need PDFium, ONNX Runtime, and a first-use model download. |
-| Python / Gradio integration | Good | Install with `pip install pdf-inspector`; documented prebuilt CPython wheels cover Linux x86_64/aarch64, macOS Intel/Apple Silicon, and Windows x64. Other targets need Rust to build from source. |
+| Python application integration | Good | Install with `pip install pdf-inspector`; documented prebuilt CPython wheels cover Linux x86_64/aarch64, macOS Intel/Apple Silicon, and Windows x64. Other targets need Rust to build from source. |
 | Licensing | Compatible | The project declares MIT. OCR uses separately acquired components/models, so their licenses and delivery must be reviewed when/if OCR enters scope. |
 
 ## Recommended adapter contract
@@ -86,4 +86,3 @@ format-specific intake boundary specified in issue #23.
   guide](https://github.com/firecrawl/pdf-inspector/blob/main/docs/ocr-runtime.md)
 - Upstream documents MIT licensing in its package metadata and repository.
   [Package metadata](https://github.com/firecrawl/pdf-inspector/blob/main/pyproject.toml)
-

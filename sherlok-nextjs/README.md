@@ -11,43 +11,44 @@ the live multi-agent workflow understandable to a human reviewer.
 
 Status: connected to the Python investigation adapter. The browser only calls
 same-origin Next.js routes; Python retains all Case File and provider state.
-The complete production runtime is self-contained here: `python/` contains the
-orchestration runtime and the single `Dockerfile` builds and starts both tiers.
+The complete production runtime is self-contained here:
+`agent-orchestration/` contains the orchestration module and the single
+`Dockerfile` builds and starts both tiers.
 
 ## Getting started
 
-For local development, start the bundled Python application interface in one
-terminal:
+Copy [`.env.example`](.env.example) to the ignored `.env` file and set one
+provider's credentials. Both the Next.js server and the orchestration module
+read that one workspace-level file during local development.
+
+Then start the bundled orchestration module in one terminal:
 
 ```bash
-cd python
+cd agent-orchestration
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m uvicorn api:create_api --factory --host 127.0.0.1 --port 8000
 ```
 
 In the workspace directory, install dependencies with the pinned package
-manager, set the non-secret adapter URL, then start the frontend in a second
-terminal:
+manager, then start the frontend in a second terminal:
 
 ```bash
 pnpm install
-export SHERLOK_PYTHON_API_URL="http://127.0.0.1:8000"
 pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to start an investigation.
 
 `SHERLOK_PYTHON_API_URL` is read only by Next.js server routes and must not be
-prefixed with `NEXT_PUBLIC_`. Provider credentials remain in the Python
-process's shell or ignored root `.env` file. A Python-process restart clears
-the demo's in-memory investigation IDs; open a new investigation afterward.
-Copy [`.env.local.example`](.env.local.example) to an ignored `.env.local` if
-you prefer local configuration over a shell export.
+prefixed with `NEXT_PUBLIC_`. Provider credentials are read by Python only.
+Next.js does not expose unprefixed environment values to browser bundles. A
+Python-process restart clears the demo's in-memory investigation IDs; open a
+new investigation afterward.
 
 If the workspace reports that the investigation service is unavailable, verify
 that the adapter is running on the configured URL. If FastAPI fails to start,
-recreate `python/.venv`; `python/requirements.txt` supplies the compatible
+recreate `agent-orchestration/.venv`; its `requirements.txt` supplies the compatible
 FastAPI and Starlette set.
 
 ## Deploy with Dokploy
@@ -59,8 +60,9 @@ container, or Docker Compose file is needed: the image starts the private
 FastAPI orchestration adapter on `127.0.0.1:8000` and the public standalone
 Next.js server on port `3000`.
 
-Set provider credentials in Dokploy's environment-variable settings rather
-than committing an `.env` file. `SHERLOK_PYTHON_API_URL` defaults to the
+Set the variables from `.env.example` once in Dokploy's environment-variable
+settings rather than committing an `.env` file. The single container passes
+those variables to both processes. `SHERLOK_PYTHON_API_URL` defaults to the
 container's private loopback adapter and should normally remain unchanged.
 The public server listens on `0.0.0.0:3000`; leave `PORT` unset unless your
 Dokploy configuration requires a different internal port.
@@ -97,7 +99,7 @@ docker run --rm -p 3000:3000 \
 
 - [`design.md`](design.md) defines the visual system.
 - [`public/Mock-Up/README.md`](public/Mock-Up/README.md) defines the seven-screen map and shared interaction rules.
-- [`../docs/specs-planned/2026-09-12-nextjs-investigation-workspace.md`](../docs/specs-planned/2026-09-12-nextjs-investigation-workspace.md) defines behavior and the Python seam.
+- [`../docs/specs-implemented/2026-09-13-nextjs-python-single-image.md`](../docs/specs-implemented/2026-09-13-nextjs-python-single-image.md) defines the delivered runtime and transport seam.
 - [`../docs/adr/0001-nextjs-presentation-python-orchestration.md`](../docs/adr/0001-nextjs-presentation-python-orchestration.md) records the stack decision.
 
 Before changing framework code, also read the version-matched documentation

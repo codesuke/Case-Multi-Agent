@@ -3,21 +3,12 @@
 from __future__ import annotations
 
 import json
-import sys
 import threading
 from collections import deque
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 
 import pytest
 
-try:
-    import gradio  # noqa: F401
-except ModuleNotFoundError:
-    gradio_stub = ModuleType("gradio")
-    gradio_stub.update = lambda **values: values
-    sys.modules["gradio"] = gradio_stub
-
-import app
 import llm_client
 from case_file import CaseFile, Specialist, VerdictReviewStatus
 from llm_client import EnvLLMClient
@@ -241,28 +232,6 @@ def test_aurora_participant_fixture_completes_revision_and_visible_human_review(
     assert any("Uncertainty" in item for item in case_file.verdict.limitations)
     assert any("Missing evidence" in item and "inspect" in item for item in case_file.verdict.limitations)
     assert case_file.verdict.review_status is VerdictReviewStatus.AWAITING_REVIEW
-    assert "proposal pending human review" in app.render_verdict(case_file)
-    assert all(update.get_config()["interactive"] for update in app.sync_review_controls(case_file))
-
-
-def test_gradio_facing_stream_renders_the_aurora_verdict_for_human_review(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(app, "EnvLLMClient", lambda: ScriptedLLM(_aurora_responses()))
-
-    updates = list(app.run_investigation(AURORA_PARTICIPANT_CASE))
-
-    transcript, evidence, suspects, timeline, skeptic, verdict, case_file = updates[-1]
-    assert "Evidence Collector finished" in transcript
-    assert "Suspect Analyst finished" in transcript
-    assert "Timeline Reconciler finished" in transcript
-    assert "Round 2: Approved" in skeptic
-    assert "A, B, D, E" in verdict
-    assert "proposal pending human review" in verdict
-    assert "Arjun Vale" in suspects
-    assert "8:23 PM" in timeline
-    assert "Blue velvet fibers" in evidence
-    assert case_file.verdict.review_status is VerdictReviewStatus.AWAITING_REVIEW
 
 
 def test_specialist_acceptance_stage_runs_concurrently_without_a_completion_order_contract() -> None:
@@ -351,7 +320,7 @@ def test_invalid_then_valid_provider_response_retries_once_before_pipeline_conti
     assert events[-1].kind is InvestigationEventKind.LEAD_DETECTIVE_COMPLETED
 
 
-def test_invalid_twice_stops_the_pipeline_and_is_visible_in_gradio(
+def test_invalid_twice_stops_the_pipeline_before_dependent_stages(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("GEMINI_API_KEY", "test-only-key")
@@ -363,19 +332,11 @@ def test_invalid_twice_stops_the_pipeline_and_is_visible_in_gradio(
         return "not json"
 
     monkeypatch.setattr(llm_client, "_call_gemini", provider)
-    monkeypatch.setattr(app, "EnvLLMClient", lambda: EnvLLMClient(provider="gemini"))
+    events = list(stream_investigation(AURORA_PARTICIPANT_CASE, EnvLLMClient(provider="gemini")))
 
-    updates = list(app.run_investigation(AURORA_PARTICIPANT_CASE))
-
-    transcript, evidence, suspects, timeline, skeptic, verdict, case_file = updates[-1]
     assert attempts == 2
-    assert "Evidence Collector step failed" in transcript
-    assert evidence == "_No evidence collected yet._"
-    assert suspects == "_No suspect profiles yet._"
-    assert timeline == "_No timeline analysis yet._"
-    assert skeptic == "_No Skeptic review yet._"
-    assert verdict == "_No verdict yet._"
-    assert case_file.verdict is None
+    assert events[-1].kind is InvestigationEventKind.STEP_FAILED
+    assert events[-1].case_file.verdict is None
 
 
 @pytest.mark.parametrize("provider", ["groq"])

@@ -89,7 +89,7 @@ server-rendered route composes the decorative atmosphere and this module.
 The UI does not determine whether a PDF is text-based. That classification is
 owned by the Case File Curator behind the existing investigation-start seam.
 Until the real command adapter ships, the existing simulated start transition
-is explicitly a temporary migration limitation, not visual progress.
+is explicitly a temporary delivery limitation, not visual progress.
 
 ## Acceptance Criteria
 

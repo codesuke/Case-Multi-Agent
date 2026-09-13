@@ -22,7 +22,7 @@ on_exit() {
 trap on_exit EXIT
 trap 'exit 0' INT TERM
 
-cd /app/python
+cd /app/agent-orchestration
 python -m uvicorn api:create_api --factory --host 127.0.0.1 --port 8000 &
 python_pid=$!
 

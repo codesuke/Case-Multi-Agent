@@ -1,8 +1,7 @@
 # Python and Next.js Conventions
 
-Rules for Sherlok's Python orchestration runtime and Next.js presentation
-layer. Historical Gradio work follows `python-gradio-conventions.md` only while
-the reference adapter remains in the repository.
+Rules for Sherlok's Python orchestration module and Next.js presentation
+module.
 
 ## Ownership and Seams
 

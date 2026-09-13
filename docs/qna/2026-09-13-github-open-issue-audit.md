@@ -28,7 +28,7 @@ no comments, and have the `ready-for-agent` label.
 
 The only explicit completion measure in the open issues is the six-slice
 checklist in #1. **3 of 6 slices are complete (50%).** This is completion of
-the approved migration slices, not a measured percentage of total project
+the approved implementation slices, not a measured percentage of total project
 effort. Issue #2 remains open and is itself unchecked in #1's approved
 follow-up list.
 
@@ -41,9 +41,8 @@ The remaining work is stated in ASD-STE100 style.
 2. Connect the Case Overview, Evidence, Timeline, Analysis, and Proposed
    Verdict pages. Keep evidence links and human decisions for the same
    investigation ID.
-3. Add and run the critical browser journey. Prove parity with the reference
-   adapter. Update local run documentation. Plan Gradio retirement in a
-   separate issue or plan.
+3. Add and run the critical browser journey. Update local run documentation
+   and record the delivered runtime architecture.
 4. Make `/agent-workspace` the canonical live workspace route. Make
    `/case/agents` an ID-preserving alias or redirect. Remove its static mock
    behavior.

@@ -30,7 +30,7 @@ RUN python -m venv "$VIRTUAL_ENV"
 
 WORKDIR /build
 
-COPY python/requirements.txt ./
+COPY agent-orchestration/requirements.txt ./
 RUN python -m pip install --upgrade pip \
   && python -m pip install -r requirements.txt
 
@@ -63,7 +63,7 @@ COPY --from=python-builder /opt/venv /app/.venv
 COPY --from=web-builder --chown=sherlok:sherlok /app/public ./public
 COPY --from=web-builder --chown=sherlok:sherlok /app/.next/standalone ./
 COPY --from=web-builder --chown=sherlok:sherlok /app/.next/static ./.next/static
-COPY --chown=sherlok:sherlok python ./python
+COPY --chown=sherlok:sherlok agent-orchestration ./agent-orchestration
 COPY --chown=sherlok:sherlok docker/start.sh ./bin/start
 
 RUN chmod 0555 ./bin/start

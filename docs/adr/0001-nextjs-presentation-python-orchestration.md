@@ -11,8 +11,8 @@ accepted — 2026-09-12
 
 ## Considered Options
 
-- Continue with one Python/Gradio process. This keeps deployment simple but
-  limits the intended multi-view investigation experience.
+- Use a single Python-rendered presentation process. This keeps deployment
+  simple but limits the intended multi-view investigation experience.
 - Move the full application to TypeScript. This unifies the runtime but would
   rewrite a tested Python pipeline and weaken locality around the existing AI
   and document-processing modules.
@@ -33,9 +33,8 @@ accepted — 2026-09-12
   evidence references. It never contains hidden model reasoning.
 - The Next.js server is the browser-facing adapter and proxies Python requests.
   Browser code never receives provider credentials or an internal Python URL.
-- Gradio remains a temporary reference adapter until the Next.js critical
-  journey has behavior parity. It is then removed in a separate, reversible
-  cleanup slice.
+- The presentation module and orchestration module remain separate while
+  communicating through the typed HTTP and event-stream seam.
 
 ## Consequences
 
