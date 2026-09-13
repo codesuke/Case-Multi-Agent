@@ -1,367 +1,42 @@
 "use client";
 
-import { motion } from "framer-motion";
-import {
-  ArrowRight,
-  Bot,
-  Check,
-  ChevronRight,
-  ClipboardList,
-  FileText,
-  FolderOpen,
-  Lightbulb,
-  ListFilter,
-  Scale,
-  Search,
-  ShieldAlert,
-  Timer,
-  Waypoints,
-} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { ArrowRight, Bot, Check, ChevronRight, ClipboardList, FileText, FolderOpen, Lightbulb, ListFilter, Scale, Search, ShieldAlert, Timer, UsersRound, Waypoints } from "lucide-react";
 import Link from "next/link";
 import { SherlokMark } from "@/components/investigation/sherlok-mark";
+import { CanonicalMaterial } from "@/components/investigation/canonical-material";
+import type { components } from "@/lib/generated/investigation-api.v1";
 
-import { Button } from "@/components/ui/button";
+type CaseFile = components["schemas"]["CaseFile"];
+type PhaseState = "complete" | "current" | "queued" | "review";
+type OverviewData = ReturnType<typeof overviewData>;
+const navItems: { label: string; icon: LucideIcon; route: string }[] = [
+  { label: "Overview", icon: FolderOpen, route: "overview" }, { label: "Evidence", icon: FileText, route: "evidence" }, { label: "Timeline", icon: Timer, route: "timeline" }, { label: "Analysis", icon: Waypoints, route: "analysis" }, { label: "Agent Workspace", icon: Bot, route: "agents" }, { label: "Proposed Verdict", icon: Scale, route: "verdict" },
+];
 
-const navigation = [
-  ["Overview", FolderOpen],
-  ["Evidence", FileText],
-  ["Timeline", Timer],
-  ["Analysis", Waypoints],
-  ["Agent Workspace", Bot],
-  ["Proposed verdict", Scale],
-] as const;
-const phases = [
-  ["Prepare", "Material accepted", "complete"],
-  ["Collect", "Sources normalized", "complete"],
-  ["Analyze", "Specialists working", "current"],
-  ["Challenge", "Cross-check findings", "queued"],
-  ["Synthesize", "Consolidate findings", "queued"],
-  ["Review", "Human decision", "queued"],
-] as const;
-const sources = [
-  ["Case brief", "Participant material", "Accepted and prepared"],
-  ["Witness account", "Participant material", "Accepted and prepared"],
-] as const;
-
-export function CaseOverview() {
-  return (
-    <main className="min-h-[100dvh] bg-[#24160e] text-[#f8ebd2]">
-      <div className="paper-noise pointer-events-none fixed inset-0" />
-      <div className="relative grid min-h-[100dvh] lg:grid-cols-[225px_minmax(0,1fr)]">
-        <Sidebar />
-        <div className="min-w-0">
-          <Topbar />
-          <section className="bg-[#f4e8d0] px-4 py-7 text-[#1e2831] sm:px-7 lg:min-h-[calc(100dvh-76px)] lg:px-10 lg:py-8">
-            <div className="mx-auto max-w-[1350px]">
-              <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_330px]">
-                <div>
-                  <Header />
-                  <CurrentStage />
-                  <Workflow />
-                  <SourceMaterial />
-                </div>
-                <RightRail />
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
-    </main>
-  );
+export function CaseOverview({ caseFile, investigationId, isComplete }: { caseFile: CaseFile; investigationId: string; isComplete: boolean }) {
+  const data = overviewData(caseFile, isComplete);
+  const href = (route: string) => route === "agents" ? `/agent-workspace?investigation_id=${encodeURIComponent(investigationId)}` : `/case/${route}?investigation_id=${encodeURIComponent(investigationId)}`;
+  return <main className="min-h-[100dvh] bg-[#24160e] text-[#f8ebd2]">
+    <div className="paper-noise pointer-events-none fixed inset-0" />
+    <div className="relative grid min-h-[100dvh] lg:grid-cols-[225px_minmax(0,1fr)]">
+      <aside className="hidden border-r border-[#745022]/65 bg-[#24160e]/95 p-6 lg:flex lg:flex-col">
+        <Link href="/" className="flex items-center gap-3 font-serif text-[29px] font-semibold leading-none tracking-wide"><SherlokMark />Sherlok</Link><p className="mt-2 text-sm text-[#d8c4a0]">AI agents for deeper answers</p>
+        <nav className="mt-8 space-y-1" aria-label="Case navigation">{navItems.map(({ label, icon: Icon, route }) => <Link key={route} href={href(route)} aria-current={route === "overview" ? "page" : undefined} className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition ${route === "overview" ? "border-l-2 border-[#f4b941] bg-[#5a3b18]/70 font-semibold text-[#f4b941]" : "text-[#f8ebd2] hover:bg-[#f8ebd2]/10"}`}><Icon className="size-5" strokeWidth={1.6} />{label}</Link>)}</nav>
+        <p className="mt-auto border-b-2 border-[#f4b941] pb-6 font-serif text-lg italic leading-6 text-[#e9d8bb]">More signal.<br />A fairer truth.</p>
+      </aside>
+      <div className="min-w-0"><header className="flex h-[79px] items-center gap-4 border-b-[3px] border-[#d8c4a0] bg-[#24160e]/95 px-6"><label className="hidden max-w-[814px] flex-1 items-center gap-4 rounded-lg border border-[#745022] bg-[#382315] px-4 py-3 text-[#d8c4a0] md:flex"><Search className="size-5 text-[#f8ebd2]" /><span className="text-sm">Search this case…</span></label><div className="ml-auto flex items-center gap-3 text-sm font-semibold text-[#f8ebd2]"><span className={`size-3 rounded-full ${data.isReview ? "bg-[#f4b941]" : "bg-[#18afa3]"} shadow-[0_0_0_4px_rgba(24,175,163,.12)]`} /><span>{data.statusLabel}</span></div><div className="rounded-lg border border-[#745022] bg-[#382315] px-5 py-3 text-sm font-semibold">Gemini</div></header>
+        <section className="bg-[#f4e8d0] px-6 py-6 text-[#1e2831] lg:min-h-[calc(100dvh-79px)]"><div className="mx-auto max-w-[1320px]"><div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_376px]"><div className="min-w-0"><header className="mb-7"><p className="eyebrow text-[#875e26]">Active investigation</p><h1 className="mt-2 font-serif text-[46px] font-semibold leading-[.94] tracking-tight text-[#121b25]">Case overview</h1><p className="mt-2 font-serif text-xl leading-7 text-[#514e4b]">High-level view of the investigation, current progress, and key materials.</p></header><CurrentStage data={data} href={href(data.actionRoute)} /><Workflow phases={data.phases} /><SourceMaterial caseFile={caseFile} href={href("overview")} /><CanonicalMaterial caseFile={caseFile} /></div>
+          <aside className="space-y-3 border-[#d8c4a0] xl:border-l xl:pl-4"><Summary href={href("overview")} icon={FileText} title="Sources" value={data.sourceCount === 0 ? "Waiting" : String(data.sourceCount)} description={data.sourceCount === 0 ? "Waiting for material preparation" : "Documents and data sources ingested"} /><Summary href={href("evidence")} icon={ClipboardList} title="Evidence" value={data.evidenceCount === 0 ? "Waiting" : String(data.evidenceCount)} description={data.evidenceCount === 0 ? "Waiting for collection" : "Evidence items extracted and categorized"} /><Summary href={href("timeline")} icon={Timer} title="Timeline issues" value={data.timelineIssues === 0 ? "Waiting" : String(data.timelineIssues)} description={data.timelineIssues === 0 ? "Waiting for timeline reconciliation" : "Potential inconsistencies identified"} /><NextStep data={data} href={href(data.actionRoute)} /><RecentActivity /></aside>
+        </div></div></section></div>
+    </div></main>;
 }
 
-function Sidebar() {
-  return (
-    <aside className="hidden border-r border-[#745022]/65 bg-[#24160e]/95 p-5 lg:flex lg:flex-col">
-      <Link
-        href="/"
-        className="flex items-center gap-3 font-serif text-[28px] font-semibold tracking-wide"
-      >
-        <SherlokMark />
-        Sherlok
-      </Link>
-      <p className="mt-1 text-sm text-[#d8c4a0]">
-        AI agents for deeper answers
-      </p>
-      <nav className="mt-8 space-y-1" aria-label="Case navigation">
-        {navigation.map(([label, Icon], index) => (
-          <a
-            key={label}
-            href={index === 0 ? "/case/overview" : "#"}
-            aria-current={index === 0 ? "page" : undefined}
-            className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition ${index === 0 ? "bg-[#5a3b18]/70 font-semibold text-[#f4b941]" : "text-[#f8ebd2] hover:bg-[#f8ebd2]/10"}`}
-          >
-            <Icon className="size-5" strokeWidth={1.6} />
-            {label}
-          </a>
-        ))}
-      </nav>
-      <div className="mt-auto border-t border-[#745022] pt-6 font-serif text-lg italic leading-6 text-[#e9d8bb]">
-        More signal.
-        <br />A fairer truth.
-        <span className="mt-5 block h-0.5 w-12 bg-[#f4b941]" />
-      </div>
-    </aside>
-  );
-}
-
-function Topbar() {
-  return (
-    <header className="flex min-h-[76px] items-center gap-4 border-b border-[#745022] bg-[#24160e]/95 px-4 sm:px-7 lg:px-6">
-      <label className="hidden max-w-[680px] flex-1 items-center gap-3 rounded-lg border border-[#745022] bg-[#382315] px-4 py-3 text-[#d8c4a0] md:flex">
-        <Search className="size-5 text-[#f4b941]" />
-        <span className="text-sm">Search this case…</span>
-      </label>
-      <div className="ml-auto flex items-center gap-3 text-sm font-semibold text-[#f8ebd2]">
-        <span className="size-2.5 rounded-full bg-[#18afa3] shadow-[0_0_0_4px_rgba(24,175,163,.12)]" />
-        <span className="hidden sm:inline">Investigation in progress</span>
-      </div>
-      <div className="rounded-lg border border-[#745022] bg-[#382315] px-4 py-2.5 text-sm font-semibold">
-        Gemini
-      </div>
-    </header>
-  );
-}
-
-function Header() {
-  return (
-    <div className="mb-7">
-      <p className="eyebrow text-[#745022]">Active investigation</p>
-      <h1 className="mt-2 font-serif text-4xl font-semibold tracking-tight text-[#24160e] sm:text-5xl">
-        Current case
-      </h1>
-      <p className="mt-2 text-[15px] leading-6 text-[#5c5145]">
-        High-level view of the investigation, its current progress, and the
-        participant materials in scope.
-      </p>
-    </div>
-  );
-}
-
-function CurrentStage() {
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45 }}
-      className="flex gap-5 rounded-lg border border-[#f4b941] bg-[#fbf2de] p-5 sm:items-center sm:p-6"
-    >
-      <span className="grid size-14 shrink-0 place-items-center rounded-full bg-[#f6deaa] text-[#24160e]">
-        <Bot className="size-7" strokeWidth={1.5} />
-      </span>
-      <div>
-        <p className="font-serif text-2xl font-semibold text-[#24160e]">
-          Specialists are analyzing the case
-        </p>
-        <p className="mt-1 max-w-2xl leading-6 text-[#5c5145]">
-          Independent roles are examining the available participant material and
-          organizing findings for scrutiny.
-        </p>
-        <Link
-          href="/agent-workspace"
-          className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#006b54] hover:underline"
-        >
-          Watch investigation <ArrowRight className="size-4" />
-        </Link>
-      </div>
-    </motion.section>
-  );
-}
-
-function Workflow() {
-  return (
-    <section className="my-8">
-      <h2 className="sr-only">Workflow progress</h2>
-      <ol className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        {phases.map(([title, description, state], index) => (
-          <motion.li
-            key={title}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.06 }}
-            className="relative min-w-0 xl:before:absolute xl:before:left-1/2 xl:before:top-4 xl:before:h-0.5 xl:before:w-[calc(100%+1rem)] xl:before:bg-[#b89b6e] xl:last:before:hidden"
-          >
-            <div className="relative z-10 flex gap-3 xl:block">
-              <span
-                className={`grid size-8 shrink-0 place-items-center rounded-full border-2 ${state === "complete" ? "border-[#18afa3] bg-[#18afa3] text-white" : state === "current" ? "border-[#f4b941] bg-[#f6deaa] text-[#24160e] ring-2 ring-[#745022] ring-offset-2 ring-offset-[#f4e8d0]" : "border-[#b89b6e] bg-[#f4e8d0] text-transparent"}`}
-              >
-                {state === "complete" ? <Check className="size-4" /> : "•"}
-              </span>
-              <div className="xl:mt-3">
-                <p className="font-serif text-lg font-semibold text-[#24160e]">
-                  {title}
-                </p>
-                <p className="text-sm leading-5 text-[#5c5145]">
-                  {description}
-                </p>
-              </div>
-            </div>
-          </motion.li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-function SourceMaterial() {
-  return (
-    <section className="rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-5 sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="font-serif text-2xl font-semibold text-[#24160e]">
-            Source material
-          </p>
-          <p className="mt-1 text-sm text-[#5c5145]">
-            Only participant-facing material is included in this case file.
-          </p>
-        </div>
-        <Button variant="secondary" className="h-10 min-h-0">
-          View all sources <ArrowRight className="size-4" />
-        </Button>
-      </div>
-      <div className="mt-5 divide-y divide-[#d8c4a0] rounded-lg border border-[#d8c4a0] bg-[#fff8e9]">
-        {sources.map(([name, type, status]) => (
-          <a
-            href="#"
-            key={name}
-            className="flex items-center gap-4 p-4 transition hover:bg-[#f4e8d0]"
-            aria-label={`Open material: ${name}`}
-          >
-            <span className="grid size-11 shrink-0 place-items-center rounded-lg border border-[#d8c4a0] bg-[#f4e8d0] text-[#745022]">
-              <FileText className="size-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <b className="block text-sm text-[#24160e]">{name}</b>
-              <span className="mt-1 block text-xs text-[#5c5145]">
-                {type} ·{" "}
-                <span className="font-semibold text-[#006b54]">{status}</span>
-              </span>
-            </span>
-            <ChevronRight className="size-5 text-[#745022]" />
-          </a>
-        ))}
-        <a
-          href="#"
-          className="flex items-center gap-4 bg-[#f6deaa]/45 p-4 transition hover:bg-[#f6deaa]"
-          aria-label="View material warning"
-        >
-          <span className="grid size-11 shrink-0 place-items-center rounded-lg border border-[#f4b941]/50 bg-[#f6deaa] text-[#704a00]">
-            <ShieldAlert className="size-5" />
-          </span>
-          <span className="flex-1">
-            <b className="block text-sm text-[#24160e]">
-              Material needs attention
-            </b>
-            <span className="mt-1 block text-xs text-[#5c5145]">
-              One source may be incomplete. Review details before relying on it.
-            </span>
-          </span>
-          <ChevronRight className="size-5 text-[#745022]" />
-        </a>
-      </div>
-    </section>
-  );
-}
-
-function RightRail() {
-  const activity = [
-    ["Analysis in progress", "Specialists are organizing findings"],
-    ["Sources processed", "Available material is ready"],
-    ["Investigation started", "Roles have been assigned"],
-  ];
-  return (
-    <aside className="space-y-4 border-[#d8c4a0] xl:border-l xl:pl-7">
-      <Snapshot
-        icon={ClipboardList}
-        title="Sources"
-        description="Participant materials in scope"
-      />
-      <Snapshot
-        icon={ListFilter}
-        title="Evidence"
-        description="Waiting for collection to finish"
-        waiting
-      />
-      <Snapshot
-        icon={Waypoints}
-        title="Timeline issues"
-        description="Waiting for timeline reconciliation"
-        waiting
-      />
-      <section className="rounded-lg border border-[#18afa3]/45 bg-[#d5f0e8]/50 p-5">
-        <span className="grid size-12 place-items-center rounded-full border border-[#18afa3]/30 bg-[#d5f0e8] text-[#006b54]">
-          <Lightbulb className="size-6" />
-        </span>
-        <h2 className="mt-3 font-serif text-xl font-semibold text-[#24160e]">
-          Next step
-        </h2>
-        <p className="mt-1 text-sm leading-5 text-[#5c5145]">
-          Continue monitoring agent progress and review new findings as they
-          become available.
-        </p>
-        <Link
-          href="/agent-workspace"
-          className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#18afa3] px-4 text-sm font-bold text-[#24160e] transition hover:bg-[#34c2b7] active:translate-y-px"
-        >
-          Watch investigation <ArrowRight className="size-4" />
-        </Link>
-      </section>
-      <section className="rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-5">
-        <div className="flex items-center gap-3">
-          <ListFilter className="size-5 text-[#745022]" />
-          <h2 className="font-serif text-xl font-semibold text-[#24160e]">
-            Recent activity
-          </h2>
-        </div>
-        <ol className="mt-4 space-y-4">
-          {activity.map(([title, description], index) => (
-            <li key={title} className="flex gap-3">
-              <span
-                className={`mt-1.5 size-3 shrink-0 rounded-full ${index === 0 ? "bg-[#18afa3]" : "bg-[#8b847c]"}`}
-              />
-              <span>
-                <b className="block text-sm text-[#24160e]">{title}</b>
-                <span className="block text-xs leading-5 text-[#5c5145]">
-                  {description}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ol>
-      </section>
-    </aside>
-  );
-}
-
-function Snapshot({
-  icon: Icon,
-  title,
-  description,
-  waiting = false,
-}: {
-  icon: typeof ClipboardList;
-  title: string;
-  description: string;
-  waiting?: boolean;
-}) {
-  return (
-    <a
-      href="#"
-      className="flex items-center gap-4 rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-4 transition hover:-translate-y-0.5 hover:border-[#b89b6e]"
-      aria-label={`View ${title.toLowerCase()}`}
-    >
-      <span
-        className={`grid size-12 place-items-center rounded-full border ${waiting ? "border-[#d8c4a0] bg-[#f4e8d0] text-[#745022]" : "border-[#d8c4a0] bg-[#f4e8d0] text-[#24160e]"}`}
-      >
-        <Icon className="size-6" strokeWidth={1.5} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <b className="font-serif text-xl text-[#24160e]">{title}</b>
-        <span className="mt-1 block text-sm leading-5 text-[#5c5145]">
-          {description}
-        </span>
-      </span>
-      <ChevronRight className="size-5 text-[#745022]" />
-    </a>
-  );
-}
+function CurrentStage({ data, href }: { data: OverviewData; href: string }) { return <section className="flex gap-7 rounded-lg border border-[#e6a522] bg-[#fbf2de] p-6 sm:items-center"><span className="grid size-[88px] shrink-0 place-items-center rounded-full bg-[#f6deaa] text-[#121b25]"><UsersRound className="size-10" strokeWidth={1.5} /></span><div><h2 className="font-serif text-[30px] font-semibold leading-tight text-[#121b25]">{data.stageTitle}</h2><p className="mt-1 max-w-2xl text-[17px] leading-6 text-[#3e4650]">{data.stageDescription}</p><Link href={href} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#006b54] hover:underline">{data.actionLabel}<ArrowRight className="size-4" /></Link></div></section>; }
+function Workflow({ phases }: { phases: { title: string; description: string; state: PhaseState }[] }) { return <ol className="my-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-6" aria-label="Investigation workflow">{phases.map(({ title, description, state }) => <li key={title} className="relative min-w-0 xl:before:absolute xl:before:left-1/2 xl:before:top-4 xl:before:h-0.5 xl:before:w-[calc(100%+1rem)] xl:before:bg-[#a4a09e] xl:last:before:hidden"><div className="relative z-10 flex gap-3 xl:block"><span className={`grid size-8 shrink-0 place-items-center rounded-full border-2 ${state === "complete" ? "border-[#18afa3] bg-[#18afa3] text-white" : state === "current" ? "border-[#ba7410] bg-[#f4b941] text-[#24160e] ring-2 ring-[#745022] ring-offset-2 ring-offset-[#f4e8d0]" : "border-[#b5b0aa] bg-[#999795] text-transparent"}`}>{state === "complete" ? <Check className="size-4" /> : "•"}</span><div className="xl:mt-3 xl:text-center"><p className="font-serif text-lg font-semibold text-[#121b25]">{title}</p><p className="text-sm leading-[18px] text-[#5c5145]">{description}</p></div></div></li>)}</ol>; }
+function SourceMaterial({ caseFile, href }: { caseFile: CaseFile; href: string }) { const sources = sourceSummaries(caseFile); return <section className="rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-5"><div className="flex items-center justify-between gap-3"><h2 className="font-serif text-[27px] font-semibold text-[#121b25]">Source material</h2><Link href={href} className="inline-flex min-h-9 items-center gap-3 rounded-md border border-[#d8c4a0] px-4 text-sm font-semibold hover:bg-[#f4e8d0]">View all sources <ArrowRight className="size-4" /></Link></div><div className="mt-3 divide-y divide-[#d8c4a0] rounded-lg border border-[#d8c4a0] bg-[#fff8e9]">{sources.length ? sources.map(({ name, blocks }) => <Link href={href} key={name} className="flex items-center gap-5 p-4 hover:bg-[#f4e8d0]"><span className="grid size-[62px] shrink-0 place-items-center rounded-lg border border-[#d8c4a0] bg-[#f4e8d0]"><FileText className="size-8" /></span><span className="min-w-0 flex-1"><b className="block font-serif text-lg text-[#121b25]">{name}</b><span className="mt-1 block text-sm text-[#5c5145]">Participant material · {blocks} canonical {blocks === 1 ? "block" : "blocks"}</span></span><span className="hidden rounded-md border border-[#d8c4a0] px-3 py-2 text-sm font-semibold sm:inline">Open source</span></Link>) : <p className="p-4 text-sm text-[#5c5145]">Material is still being prepared.</p>}{caseFile.material_warnings?.map((warning) => <Link href={href} key={warning} className="flex items-center gap-5 bg-[#f6deaa]/45 p-4 hover:bg-[#f6deaa]"><span className="grid size-[62px] shrink-0 place-items-center rounded-lg border border-[#f4b941]/50 bg-[#f6deaa] text-[#704a00]"><ShieldAlert className="size-8" /></span><span className="flex-1"><b className="block font-serif text-lg text-[#121b25]">Material needs attention</b><span className="mt-1 block text-sm text-[#5c5145]">{warning}</span></span><ChevronRight className="size-5 text-[#745022]" /></Link>)}</div></section>; }
+function Summary({ href, icon: Icon, title, value, description }: { href: string; icon: LucideIcon; title: string; value: string; description: string }) { const accessibleName = title === "Evidence" ? "Open collected facts" : title === "Sources" ? "Open source material" : "Open timeline issues"; return <Link href={href} aria-label={accessibleName} className="flex min-h-[130px] items-center gap-5 rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-4 hover:border-[#b89b6e]"><span className="grid size-16 shrink-0 place-items-center rounded-full border border-[#d8c4a0] bg-[#f4e8d0]"><Icon className="size-8" strokeWidth={1.5} /></span><span className="min-w-0 flex-1"><b className="block font-serif text-xl text-[#121b25]">{title}</b><strong className="block font-serif text-[30px] leading-8 text-[#121b25]">{value}</strong><span className="block text-sm leading-[18px] text-[#5c5145]">{description}</span></span><ChevronRight className="size-5" /></Link>; }
+function NextStep({ data, href }: { data: OverviewData; href: string }) { return <section className="rounded-lg border border-[#18afa3]/45 bg-[#e5f0e7] p-4"><div className="flex gap-5"><span className="grid size-14 shrink-0 place-items-center rounded-full border border-[#18afa3]/30 bg-[#d5f0e8] text-[#006b54]"><Lightbulb className="size-7" /></span><div><h2 className="font-serif text-xl font-semibold text-[#121b25]">Next step</h2><p className="mt-1 text-sm leading-5 text-[#3e4650]">{data.nextStep}</p></div></div><Link href={href} className="mt-3 flex min-h-11 items-center justify-center gap-3 rounded-md bg-[#078c84] text-sm font-bold text-white hover:bg-[#006b64]">{data.actionLabel}<ArrowRight className="size-4" /></Link></section>; }
+function RecentActivity() { return <section className="rounded-lg border border-[#d8c4a0] bg-[#fbf2de] p-4"><div className="flex items-center gap-3"><ListFilter className="size-6" /><h2 className="font-serif text-xl font-semibold text-[#121b25]">Recent activity</h2></div><p className="mt-4 text-sm leading-5 text-[#5c5145]">Recent orchestration events will appear here as the investigation progresses.</p></section>; }
+function overviewData(caseFile: CaseFile, isComplete: boolean) { const status = caseFile.verdict?.review_status; const isReview = status === "awaiting_review" || status === "accepted" || status === "rejected"; const stageTitle = status === "awaiting_review" ? "A proposed verdict is ready for review" : status === "accepted" ? "A human decision has been recorded" : status === "rejected" ? "The proposed verdict was rejected" : "Specialists are analyzing the case"; const stageDescription = isReview ? "Review the evidence-cited proposal and its status in the investigation workspace." : "AI agents are examining the available evidence, identifying patterns, and developing hypotheses."; const evidenceCount = caseFile.evidence?.length ?? 0; return { isReview, statusLabel: isComplete ? "Investigation complete" : "Investigation in progress", stageTitle, stageDescription, actionLabel: isReview ? "Review proposed verdict" : "Watch investigation", actionRoute: isReview ? "verdict" : "agents", phases: [{ title: "Prepare", description: "Case materials initialized", state: "complete" as PhaseState }, { title: "Collect", description: evidenceCount ? "Evidence collected" : "Sources ingested and processed", state: "complete" as PhaseState }, { title: "Analyze", description: "Agents are analyzing the case", state: isReview ? "complete" as PhaseState : "current" as PhaseState }, { title: "Challenge", description: "Cross-checking and stress testing", state: isReview ? "complete" as PhaseState : "queued" as PhaseState }, { title: "Synthesize", description: "Consolidating findings", state: isReview ? "complete" as PhaseState : "queued" as PhaseState }, { title: "Review", description: "Final validation and human review", state: isReview ? "review" as PhaseState : "queued" as PhaseState }], evidenceCount, sourceCount: sourceSummaries(caseFile).length, timelineIssues: caseFile.timeline?.issues?.length ?? 0, nextStep: isReview ? "Review the proposed verdict and its cited evidence before recording a decision." : "Continue monitoring agent progress and review new findings as they become available." }; }
+function sourceSummaries(caseFile: CaseFile) { const counts = new Map<string, number>(); for (const block of caseFile.material_blocks ?? []) { const name = block.source_reference.source_name || "Participant material"; counts.set(name, (counts.get(name) ?? 0) + 1); } if (!counts.size && caseFile.canonical_material) counts.set("Participant material", 1); return [...counts].map(([name, blocks]) => ({ name, blocks })); }

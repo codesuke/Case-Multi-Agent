@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { AnalysisDossier } from "@/components/investigation/analysis-dossier";
+import { CaseOverview } from "@/components/investigation/case-overview";
 import { CaseNavigation } from "@/components/investigation/case-navigation";
 import type { components } from "@/lib/generated/investigation-api.v1";
 import { asInvestigationSnapshot, safeFailureMessage } from "@/lib/investigation-contract";
@@ -37,7 +38,7 @@ export function CaseWorkspace({ investigationId, view }: { investigationId: stri
   return <WorkspaceBody caseFile={snapshot.case_file} investigationId={investigationId} isComplete={snapshot.is_complete} view={view} onSnapshot={setSnapshot} />;
 }
 
-function WorkspaceBody({ caseFile, investigationId, isComplete, view, onSnapshot }: { caseFile: CaseFile; investigationId: string; isComplete: boolean; view: View; onSnapshot: (snapshot: Snapshot) => void }) { if (view === "analysis") return <AnalysisDossier caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />;
+function WorkspaceBody({ caseFile, investigationId, isComplete, view, onSnapshot }: { caseFile: CaseFile; investigationId: string; isComplete: boolean; view: View; onSnapshot: (snapshot: Snapshot) => void }) { if (view === "overview") return <CaseOverview caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />; if (view === "analysis") return <AnalysisDossier caseFile={caseFile} investigationId={investigationId} isComplete={isComplete} />;
   return <main className="min-h-screen bg-[#f4e8d0] p-6 text-[#1e2831] sm:p-10"><header className="mx-auto max-w-5xl border-b border-[#b89b6e] pb-5"><p className="text-sm font-semibold uppercase tracking-wide text-[#745022]">Investigation case file</p><h1 className="mt-1 font-serif text-4xl font-semibold">{titleFor(view)}</h1><CaseNavigation currentView={view} investigationId={investigationId} /></header><section className="mx-auto mt-6 max-w-5xl">{view === "overview" && <Overview caseFile={caseFile} />}{view === "evidence" && <Evidence caseFile={caseFile} />}{view === "timeline" && <Timeline caseFile={caseFile} investigationId={investigationId} />}{view === "verdict" && <Verdict caseFile={caseFile} investigationId={investigationId} onSnapshot={onSnapshot} />}</section></main>;
 }
 
