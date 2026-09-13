@@ -13,9 +13,15 @@ const snapshot = {
     human_notes: [],
     source_text: {},
     revised_specialists: [],
-    evidence: [{ id: "CLUE-7", classification: "observed_fact", statement: "The lantern was dark after midnight.", source_references: [] }],
+    evidence: [
+      { id: "CLUE-7", classification: "observed_fact", statement: "The lantern was dark after midnight.", source_references: [] },
+      { id: "CLUE-9", classification: "observed_fact", statement: "The lighthouse door was unlocked.", source_references: [] },
+    ],
     suspect_profiles: [],
-    timeline: { events: [], issues: [] },
+    timeline: {
+      events: [{ order: 1, time: "00:10", statement: "The lantern went dark.", status: "supported", evidence_ids: ["CLUE-7"] }],
+      issues: [{ kind: "contradiction", statement: "The door record conflicts with the keeper's statement.", evidence_ids: ["CLUE-9"] }],
+    },
     skeptic_reviews: [],
   },
 };
@@ -77,6 +83,20 @@ test("starts an unrelated case, opens its case file, and follows evidence", asyn
   await expect(page).toHaveURL(new RegExp(`/case/overview\\?investigation_id=${investigationId}`));
   await page.getByRole("link", { name: "Evidence" }).click();
   await expect(page.getByRole("heading", { name: /CLUE-7/ })).toBeVisible();
+});
+
+test("opens cited Evidence from Timeline events and issues in the same Case File", async ({ page }) => {
+  await mockInvestigationApi(page);
+  await page.goto(`/case/timeline?investigation_id=${investigationId}`);
+
+  await page.getByRole("heading", { name: "Chronological events" }).locator("..").getByRole("link", { name: "CLUE-7" }).click();
+  await expect(page).toHaveURL(new RegExp(`/case/evidence\\?investigation_id=${investigationId}#evidence-CLUE-7`));
+  await expect(page.locator("#evidence-CLUE-7")).toContainText("The lantern was dark after midnight.");
+
+  await page.goBack();
+  await page.getByRole("heading", { name: "Open timeline issues" }).locator("..").getByRole("link", { name: "CLUE-9" }).click();
+  await expect(page).toHaveURL(new RegExp(`/case/evidence\\?investigation_id=${investigationId}#evidence-CLUE-9`));
+  await expect(page.locator("#evidence-CLUE-9")).toContainText("The lighthouse door was unlocked.");
 });
 
 test("rejects an unsupported file before it sends the start command", async ({ page }) => {
