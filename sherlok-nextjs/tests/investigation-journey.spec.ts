@@ -245,7 +245,7 @@ test("shows a safe recovery message for an unknown investigation", async ({ page
     json: { detail: { stage: "case_file", message: "The investigation was not found.", recovery_action: "Start a new investigation." } },
   }));
   await page.goto("/case/overview?investigation_id=unknown-case");
-  await expect(page.getByRole("heading", { name: "Case file unavailable" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Investigation not found" })).toBeVisible();
   await expect(page.getByText("The investigation was not found.")).toBeVisible();
 });
 
