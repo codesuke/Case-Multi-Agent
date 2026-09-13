@@ -339,4 +339,5 @@ test("records a decision and sends guided re-investigation through the public co
   await secondPage.getByPlaceholder("Required guidance note").fill("Check the final log entry.");
   await secondPage.getByRole("button", { name: "Request re-investigation" }).click();
   await expect.poll(() => commands).toContainEqual({ path: "reinvestigation", body: '{"note":"Check the final log entry."}' });
+  await expect(secondPage).toHaveURL(new RegExp(`/agent-workspace\\?investigation_id=${investigationId}`));
 });
