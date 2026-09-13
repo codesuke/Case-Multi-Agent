@@ -173,6 +173,52 @@ test("redirects the legacy agent route without losing the investigation ID", asy
   await expect(page.getByRole("heading", { name: "Agent Workspace" })).toBeVisible();
 });
 
+test("shows structured preparation, parallel revision, and follow-up events without inventing a specialist order", async ({ page }) => {
+  const events = [
+    publicEvent(1, "case_structuring_started", "case_structuring", "working"),
+    publicEvent(2, "case_structuring_completed", "case_structuring", "completed"),
+    publicEvent(3, "suspect_analysis_started", "suspect_analysis", "working"),
+    publicEvent(4, "timeline_reconciliation_started", "timeline_reconciliation", "working"),
+    publicEvent(5, "specialist_revision_started", "specialist_revision", "revising", "suspect_analyst"),
+    publicEvent(6, "follow_up_planning_completed", "follow_up_planning", "completed", undefined, ["LANTERN-4"]),
+  ];
+  await page.route(`**/api/investigations/${investigationId}`, (route) => route.fulfill({ json: snapshot }));
+  await page.route(`**/api/investigations/${investigationId}/events**`, (route) => route.fulfill({
+    contentType: "text/event-stream",
+    body: events.map((event) => `id: ${event.event_id}\nevent: ${event.event_type}\ndata: ${JSON.stringify(event)}\n\n`).join(""),
+  }));
+
+  await page.goto(`/agent-workspace?investigation_id=${investigationId}`);
+
+  const workflow = page.getByRole("region", { name: "Workflow stages" });
+  await expect(workflow.getByRole("listitem").filter({ hasText: "Case Structurer" })).toContainText("completed");
+  await expect(workflow.getByRole("listitem").filter({ hasText: "Suspect Analyst" })).toContainText("revising");
+  await expect(workflow.getByRole("listitem").filter({ hasText: "Timeline Reconciler" })).toContainText("working");
+  await expect(workflow.getByRole("listitem").filter({ hasText: "Follow-up Planner" })).toContainText("completed");
+  await expect(page.getByText("LANTERN-4")).toBeVisible();
+});
+
+function publicEvent(
+  eventId: number,
+  eventType: string,
+  stage: string,
+  status: "working" | "completed" | "revising",
+  specialist?: "suspect_analyst" | "timeline_reconciler",
+  evidenceIds: string[] = [],
+) {
+  return {
+    transport_version: "1.0.0",
+    event_id: eventId,
+    event_type: eventType,
+    investigation_id: investigationId,
+    stage,
+    status,
+    timestamp: "2026-09-13T00:00:00Z",
+    specialist,
+    evidence_ids: evidenceIds,
+  };
+}
+
 test("shows a safe recovery message for an unknown investigation", async ({ page }) => {
   await page.route("**/api/investigations/unknown-case", (route) => route.fulfill({
     status: 404,
