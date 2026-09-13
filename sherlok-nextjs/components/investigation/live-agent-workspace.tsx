@@ -127,9 +127,25 @@ export function LiveAgentWorkspace({ investigationId }: { investigationId: strin
         <h2 className="font-serif text-2xl">Observable workflow</h2>
         {events.length === 0 ? <p className="mt-3 text-[#e9d8bb]">Waiting for safe investigation events…</p> : <ol className="mt-4 space-y-3">{events.map((event) => <li key={event.event_id} className="rounded border border-[#745022] bg-[#382315] p-4"><b>{readable(event.stage)}</b> — {readable(event.status)}{event.specialist ? ` (${readable(event.specialist)})` : ""}{event.message ? `: ${event.message}` : ""}</li>)}</ol>}
       </section>
+      {snapshot?.case_file && <ContinuationChoices investigationId={investigationId} caseFile={snapshot.case_file as unknown} />}
     </main>
   );
 }
+
+type Recommendation = { id: string; rank: number; question: string; expected_value: string; evidence_ids: string[] };
+function ContinuationChoices({ investigationId, caseFile }: { investigationId: string; caseFile: unknown }) {
+  const [guidance, setGuidance] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const recommendations = isRecord(caseFile) && Array.isArray(caseFile.follow_up_recommendations)
+    ? caseFile.follow_up_recommendations.filter(isRecommendation).slice(0, 5) : [];
+  async function continueWith(body: Record<string, string>) {
+    const response = await fetch(`/api/investigations/${encodeURIComponent(investigationId)}/continuation`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    setNotice(response.ok ? "Continuation requested. The workspace will show progress shortly." : safeFailureMessage(await response.json(), "The continuation could not be requested."));
+  }
+  return <section className="mx-auto mt-8 max-w-4xl rounded border border-[#745022] bg-[#382315] p-4"><h2 className="font-serif text-2xl">Suggested follow-up</h2>{recommendations.length > 0 ? <ol className="mt-3 space-y-3">{recommendations.map((item) => <li key={item.id}><p><b>{item.rank}. {item.question}</b></p><p className="text-sm text-[#e9d8bb]">Expected value: {item.expected_value} · Evidence: {item.evidence_ids.join(", ")}</p><button className="mt-2 underline" onClick={() => void continueWith({ recommendation_id: item.id })}>Choose this option</button></li>)}</ol> : <p className="mt-3 text-[#e9d8bb]">No justified follow-up recommendation is available.</p>}<label className="mt-5 block">Other Guidance note<textarea className="mt-2 block w-full text-[#24160e]" value={guidance} onChange={(event) => setGuidance(event.target.value)} /></label><button className="mt-2 underline" disabled={!guidance.trim()} onClick={() => void continueWith({ guidance_note: guidance })}>Continue with guidance</button>{notice && <p className="mt-3" role="status">{notice}</p>}</section>;
+}
+function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
+function isRecommendation(value: unknown): value is Recommendation { return isRecord(value) && typeof value.id === "string" && typeof value.rank === "number" && typeof value.question === "string" && typeof value.expected_value === "string" && Array.isArray(value.evidence_ids) && value.evidence_ids.every((id) => typeof id === "string"); }
 
 function messageFrom(value: unknown): string { return safeFailureMessage(value, "The investigation could not be loaded."); }
 function readable(value: string): string { return value.replaceAll("_", " "); }

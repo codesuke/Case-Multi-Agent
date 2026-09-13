@@ -65,6 +65,15 @@ class ReinvestigationRequest(BaseModel):
     provider: str | None = None
 
 
+class ContinuationRequest(BaseModel):
+    """One selected follow-up option or an Other Guidance note."""
+
+    recommendation_id: str | None = None
+    guidance_note: str | None = None
+    new_material: str = ""
+    provider: str | None = None
+
+
 class InvestigationSnapshot(BaseModel):
     """The displayable projection of one case file at its current state."""
 
@@ -200,6 +209,45 @@ class InvestigationApplication:
                 ),
                 daemon=True,
             ).start()
+        return self.snapshot(investigation_id)
+
+    def continue_investigation(
+        self, investigation_id: str, request: ContinuationRequest
+    ) -> InvestigationSnapshot:
+        """Continue a case from one valid option or a User's Other Guidance note."""
+        if bool(request.recommendation_id) == bool((request.guidance_note or "").strip()):
+            raise InvestigationApplicationError(
+                "Select one follow-up recommendation or enter one guidance note."
+            )
+        with self._changes:
+            record = self._record_for(investigation_id)
+            case_file = self._completed_case_file(record)
+            recommendation = next(
+                (item for item in case_file.follow_up_recommendations if item.id == request.recommendation_id),
+                None,
+            )
+            if request.recommendation_id and recommendation is None:
+                raise InvestigationApplicationError("The selected follow-up recommendation is not in this Case File.")
+            if recommendation and recommendation.action_type.value == "request_material" and not request.new_material.strip():
+                record.events.append(PublicInvestigationEvent(
+                    event_id=len(record.events) + 1, investigation_id=investigation_id,
+                    event_type="material_requested", stage="continuation", status=InvestigationStatus.AWAITING_REVIEW,
+                    timestamp=datetime.now(UTC), message="This option needs additional supplied material before analysis can continue.",
+                    evidence_ids=recommendation.evidence_ids,
+                ))
+                self._changes.notify_all()
+                return self.snapshot(investigation_id)
+            note = (request.guidance_note or recommendation.question).strip()  # type: ignore[union-attr]
+            case_file.prior_verdicts = [*case_file.prior_verdicts, case_file.verdict] if case_file.verdict else case_file.prior_verdicts
+            record.is_complete = False
+            record.events.append(PublicInvestigationEvent(
+                event_id=len(record.events) + 1, investigation_id=investigation_id,
+                event_type="continuation_requested", stage="continuation", status=InvestigationStatus.REVISING,
+                timestamp=datetime.now(UTC), message=note,
+                evidence_ids=recommendation.evidence_ids if recommendation else (),
+            ))
+            Thread(target=self._run_pipeline, args=(investigation_id, stream_reinvestigation(case_file, note, self._llm_factory(request.provider))), daemon=True).start()
+            self._changes.notify_all()
         return self.snapshot(investigation_id)
 
     def _record_for(self, investigation_id: str) -> _InvestigationRecord:

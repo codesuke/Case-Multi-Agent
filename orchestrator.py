@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 from agents.collector import EvidenceCollector
+from agents.case_structurer import CaseStructurer
+from agents.follow_up_planner import FollowUpPlanner
 from agents.lead_detective import LeadDetective
 from agents.skeptic import Skeptic
 from agents.suspect_analyst import SuspectAnalyst
@@ -30,6 +32,8 @@ _SPECIALIST_AGENTS = {
 }
 
 _EVIDENCE_COLLECTOR_NAME = "Evidence Collector"
+_CASE_STRUCTURER_NAME = "Case Structurer"
+_FOLLOW_UP_PLANNER_NAME = "Follow-up Planner"
 _SKEPTIC_NAME = "Skeptic"
 _LEAD_DETECTIVE_NAME = "Lead Detective"
 _SPECIALIST_AGENT_NAMES = {
@@ -66,6 +70,8 @@ class InvestigationEventKind(Enum):
     CONFIGURATION_VALIDATED = auto()
     CASE_MATERIAL_CURATION_STARTED = auto()
     CASE_MATERIAL_CURATION_COMPLETED = auto()
+    CASE_STRUCTURING_STARTED = auto()
+    CASE_STRUCTURING_COMPLETED = auto()
     EVIDENCE_COLLECTION_STARTED = auto()
     EVIDENCE_COLLECTION_COMPLETED = auto()
     SUSPECT_ANALYSIS_STARTED = auto()
@@ -80,6 +86,10 @@ class InvestigationEventKind(Enum):
     SPECIALIST_REVISION_COMPLETED = auto()
     LEAD_DETECTIVE_STARTED = auto()
     LEAD_DETECTIVE_COMPLETED = auto()
+    FOLLOW_UP_PLANNING_STARTED = auto()
+    FOLLOW_UP_PLANNING_COMPLETED = auto()
+    CONTINUATION_REQUESTED = auto()
+    MATERIAL_REQUESTED = auto()
     REINVESTIGATION_REQUESTED = auto()
     STEP_FAILED = auto()
 
@@ -175,6 +185,17 @@ def stream_investigation(
             case_file=case_file,
             message=metadata.display_text,
         )
+    yield InvestigationEvent(
+        kind=InvestigationEventKind.CASE_STRUCTURING_STARTED, case_file=case_file
+    )
+    try:
+        _run_agent(_CASE_STRUCTURER_NAME, lambda: CaseStructurer(llm).run(case_file))
+    except _StepFailed as failure:
+        yield _step_failed_event(case_file, failure)
+        return
+    yield InvestigationEvent(
+        kind=InvestigationEventKind.CASE_STRUCTURING_COMPLETED, case_file=case_file
+    )
     yield InvestigationEvent(
         kind=InvestigationEventKind.EVIDENCE_COLLECTION_STARTED,
         case_file=case_file,
@@ -299,6 +320,13 @@ def _run_analysis_and_verdict(case_file: CaseFile, llm: LLMClient) -> Iterator[I
     _run_agent(_LEAD_DETECTIVE_NAME, lambda: LeadDetective(llm).run(case_file))
     yield InvestigationEvent(
         kind=InvestigationEventKind.LEAD_DETECTIVE_COMPLETED, case_file=case_file
+    )
+    yield InvestigationEvent(
+        kind=InvestigationEventKind.FOLLOW_UP_PLANNING_STARTED, case_file=case_file
+    )
+    _run_agent(_FOLLOW_UP_PLANNER_NAME, lambda: FollowUpPlanner(llm).run(case_file))
+    yield InvestigationEvent(
+        kind=InvestigationEventKind.FOLLOW_UP_PLANNING_COMPLETED, case_file=case_file
     )
 
 

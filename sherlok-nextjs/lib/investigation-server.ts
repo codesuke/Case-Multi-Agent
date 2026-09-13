@@ -72,7 +72,7 @@ export async function proxyValidatedSnapshot(
 
 export async function proxyJsonCommand(
   investigationId: string,
-  suffix: "/decision" | "/reinvestigation",
+  suffix: "/decision" | "/reinvestigation" | "/continuation",
   body: string,
 ): Promise<Response> {
   return proxyValidatedSnapshot(investigationId, suffix, {

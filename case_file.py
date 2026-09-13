@@ -25,6 +25,83 @@ class EvidenceItem(BaseModel):
     source_references: tuple[SourceReference, ...] = ()
 
 
+class PreparedEntity(BaseModel):
+    """A named person, place, object, or organization grounded in supplied material."""
+
+    id: str
+    name: str
+    kind: str
+    source_references: tuple[SourceReference, ...]
+
+
+class EventCandidate(BaseModel):
+    """A source-grounded possible event without a claim of responsibility."""
+
+    id: str
+    statement: str
+    time_wording: str | None = None
+    entity_ids: tuple[str, ...] = ()
+    source_references: tuple[SourceReference, ...]
+
+
+class PreparedRelationship(BaseModel):
+    """An observed or explicitly inferred link between prepared entities."""
+
+    id: str
+    subject_entity_id: str
+    object_entity_id: str
+    statement: str
+    is_observed: bool
+    source_references: tuple[SourceReference, ...]
+
+
+class PreparationConflict(BaseModel):
+    """A source-grounded inconsistency that later analysis must preserve."""
+
+    id: str
+    statement: str
+    source_references: tuple[SourceReference, ...]
+
+
+class UnansweredQuestion(BaseModel):
+    """A visible question that the supplied material does not resolve."""
+
+    id: str
+    question: str
+    source_references: tuple[SourceReference, ...]
+
+
+class CasePreparation(BaseModel):
+    """The Case Structurer's source-grounded preparation section."""
+
+    entities: tuple[PreparedEntity, ...] = ()
+    event_candidates: tuple[EventCandidate, ...] = ()
+    relationships: tuple[PreparedRelationship, ...] = ()
+    conflicts: tuple[PreparationConflict, ...] = ()
+    unanswered_questions: tuple[UnansweredQuestion, ...] = ()
+    characterization: str
+
+
+class FollowUpActionType(str, Enum):
+    REQUEST_MATERIAL = "request_material"
+    COMPARE_SUPPLIED_MATERIAL = "compare_supplied_material"
+    SCOPED_REINVESTIGATION = "scoped_reinvestigation"
+
+
+class FollowUpRecommendation(BaseModel):
+    """An evidence-cited, non-binding option for the next investigation pass."""
+
+    id: str
+    rank: int
+    question: str
+    action_type: FollowUpActionType
+    expected_value: str
+    safe_reason: str
+    evidence_ids: tuple[str, ...]
+    unanswered_question_ids: tuple[str, ...] = ()
+    conflict_ids: tuple[str, ...] = ()
+
+
 class ClaimStatus(str, Enum):
     """Whether a specialist claim is backed by cited evidence or unresolved."""
 
@@ -188,12 +265,15 @@ class CaseFile(BaseModel):
     source_text: dict[str, str] = Field(default_factory=dict)
     material_blocks: list[CaseMaterialBlock] = Field(default_factory=list)
     material_warnings: list[str] = Field(default_factory=list)
+    preparation: CasePreparation | None = None
     evidence: list[EvidenceItem] = Field(default_factory=list)
     suspect_profiles: list[SuspectProfile] = Field(default_factory=list)
     timeline: Timeline = Field(default_factory=Timeline)
     skeptic_reviews: list[SkepticReview] = Field(default_factory=list)
     revised_specialists: set[Specialist] = Field(default_factory=set)
     human_notes: list[str] = Field(default_factory=list)
+    follow_up_recommendations: list[FollowUpRecommendation] = Field(default_factory=list)
+    prior_verdicts: list[Verdict] = Field(default_factory=list)
     verdict: Verdict | None = None
 
     def accept_verdict(self) -> None:

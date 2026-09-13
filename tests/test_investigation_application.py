@@ -8,6 +8,7 @@ import threading
 from case_file import VerdictReviewStatus
 from case_material import CaseMaterialInput
 from investigation_application import (
+    ContinuationRequest,
     DecisionRequest,
     InvestigationApplication,
     ReinvestigationRequest,
@@ -20,11 +21,20 @@ class _ApplicationLLM:
     responses: list[dict] = field(
         default_factory=lambda: [
             {
+                "preparation": {
+                    "entities": [{"id": "ENT-1", "name": "The lighthouse lamp", "kind": "object", "source_reference_ids": ["S-001"]}],
+                    "event_candidates": [{"id": "EVT-1", "statement": "The lamp went dark.", "time_wording": "before midnight", "entity_ids": ["ENT-1"], "source_reference_ids": ["S-001"]}],
+                    "relationships": [], "conflicts": [], "unanswered_questions": [],
+                    "characterization": "A disappearance case with unresolved responsibility.",
+                }
+            },
+            {
                 "evidence": [
                     {
                         "id": "L-7",
                         "statement": "The lighthouse lamp went dark before midnight.",
                         "classification": "observed_fact",
+                        "source_reference_ids": ["S-001"],
                     }
                 ]
             },
@@ -74,13 +84,18 @@ class _ApplicationLLM:
                 "confidence": 35,
                 "limitations": ["Responsibility remains uncertain."],
             },
+            {"recommendations": []},
         ]
     )
 
     def call_llm(self, prompt: str, system: str, response_schema: dict) -> dict:
         expected_key = (
-            "evidence"
+            "preparation"
+            if "Case Structurer" in system
+            else "evidence"
             if "Evidence Collector" in system
+            else "recommendations"
+            if "Follow-up Planner" in system
             else "conclusions"
             if "Lead Detective" in system
             else "findings"
@@ -135,7 +150,7 @@ def test_user_can_start_an_uploaded_case_and_recover_its_snapshot_and_events() -
     assert snapshot.case_file.verdict is not None
     assert [event.event_id for event in events] == list(range(1, len(events) + 1))
     assert events[0].event_type == "case_material_curation_started"
-    assert events[-1].event_type == "lead_detective_completed"
+    assert events[-1].event_type == "follow_up_planning_completed"
 
 
 def test_user_can_observe_a_lifecycle_event_before_the_investigation_completes() -> None:
@@ -148,7 +163,7 @@ def test_user_can_observe_a_lifecycle_event_before_the_investigation_completes()
     events = application.events(started.investigation_id)
     first_event = next(events)
 
-    assert first_event.event_type == "evidence_collection_started"
+    assert first_event.event_type == "case_structuring_started"
     assert application.snapshot(started.investigation_id).is_complete is False
     llm.release_collection.set()
     tuple(events)
@@ -193,3 +208,18 @@ def test_user_can_request_reinvestigation_without_collecting_evidence_again() ->
     assert snapshot.case_file.human_notes == ["Check the keeper's alibi."]
     assert later_events[0].event_type == "reinvestigation_requested"
     assert "evidence_collection_started" not in {event.event_type for event in later_events}
+
+
+def test_user_can_continue_with_other_guidance_through_the_application_interface() -> None:
+    application = InvestigationApplication(lambda provider: _ApplicationLLM())
+    started = application.start(StartInvestigationRequest(pasted_material="The lighthouse lamp went dark."))
+    tuple(application.events(started.investigation_id))
+
+    snapshot = application.continue_investigation(
+        started.investigation_id,
+        ContinuationRequest(guidance_note="Compare the supplied log entries."),
+    )
+
+    assert snapshot.is_complete is False
+    events = tuple(application.events(started.investigation_id))
+    assert "continuation_requested" in {event.event_type for event in events}

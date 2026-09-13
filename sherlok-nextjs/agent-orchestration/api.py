@@ -15,6 +15,7 @@ from case_file import VerdictReviewError
 from case_material import CaseMaterialInput
 from investigation_application import (
     DecisionRequest,
+    ContinuationRequest,
     InvestigationApplication,
     InvestigationApplicationError,
     InvestigationSnapshot,
@@ -155,6 +156,18 @@ def create_api(application: InvestigationApplication | None = None) -> FastAPI:
     ) -> InvestigationSnapshot:
         return _call_application(
             lambda: investigation_application.reinvestigate(investigation_id, request)
+        )
+
+    @api.post(
+        "/v1/investigations/{investigation_id}/continuation",
+        response_model=InvestigationSnapshot,
+        responses=_SAFE_FAILURE_RESPONSE,
+    )
+    def continue_investigation(
+        investigation_id: str, request: ContinuationRequest
+    ) -> InvestigationSnapshot:
+        return _call_application(
+            lambda: investigation_application.continue_investigation(investigation_id, request)
         )
 
     _configure_openapi(api)
