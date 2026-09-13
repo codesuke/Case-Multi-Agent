@@ -11,19 +11,24 @@ the live multi-agent workflow understandable to a human reviewer.
 
 Status: connected to the Python investigation adapter. The browser only calls
 same-origin Next.js routes; Python retains all Case File and provider state.
+The complete production runtime is self-contained here: `python/` contains the
+orchestration runtime and the single `Dockerfile` builds and starts both tiers.
 
 ## Getting started
 
-From the repository root, create the pinned Python environment and start the
-investigation adapter in one terminal:
+For local development, start the bundled Python application interface in one
+terminal:
 
 ```bash
-./scripts/setup.sh
-./.venv/bin/uvicorn api:create_api --factory --host 127.0.0.1 --port 8000
+cd python
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m uvicorn api:create_api --factory --host 127.0.0.1 --port 8000
 ```
 
-In this directory, install dependencies with the pinned package manager, set
-the non-secret adapter URL, then start the frontend in a second terminal:
+In the workspace directory, install dependencies with the pinned package
+manager, set the non-secret adapter URL, then start the frontend in a second
+terminal:
 
 ```bash
 pnpm install
@@ -42,21 +47,51 @@ you prefer local configuration over a shell export.
 
 If the workspace reports that the investigation service is unavailable, verify
 that the adapter is running on the configured URL. If FastAPI fails to start,
-recreate the isolated environment with `./scripts/setup.sh`; the pinned
-`requirements.txt` supplies the compatible FastAPI and Starlette set.
+recreate `python/.venv`; `python/requirements.txt` supplies the compatible
+FastAPI and Starlette set.
 
 ## Deploy with Dokploy
 
 Dokploy can build this directory directly from the included `Dockerfile`.
 Create an **Application** from this repository, set the build context to
-`sherlok-nextjs`, and expose container port `3000`. No start command or
-Docker Compose file is needed: the image builds the app and starts the
-standalone Next.js server itself.
+`sherlok-nextjs`, and expose container port `3000`. No start command, second
+container, or Docker Compose file is needed: the image starts the private
+FastAPI orchestration adapter on `127.0.0.1:8000` and the public standalone
+Next.js server on port `3000`.
 
-Set application secrets and any public runtime configuration in Dokploy's
-environment-variable settings rather than committing an `.env` file. The
-container already listens on `0.0.0.0:3000`; leave `PORT` unset unless your
+Set provider credentials in Dokploy's environment-variable settings rather
+than committing an `.env` file. `SHERLOK_PYTHON_API_URL` defaults to the
+container's private loopback adapter and should normally remain unchanged.
+The public server listens on `0.0.0.0:3000`; leave `PORT` unset unless your
 Dokploy configuration requires a different internal port.
+
+## Search and browser metadata
+
+The browser tab uses the Sherlok detective mark from `public/assets/`; it is
+compiled into `app/favicon.ico` for browser compatibility. Set these Dokploy
+environment variables before deploying so public metadata and crawler routes
+use the correct canonical origin:
+
+```bash
+NEXT_PUBLIC_SITE_URL=https://your-sherlok-domain.example
+GOOGLE_SITE_VERIFICATION=your-google-search-console-token # optional
+```
+
+`NEXT_PUBLIC_SITE_URL` must be the final public HTTPS URL, with no trailing
+slash. The application serves `/robots.txt` and `/sitemap.xml`; submit the
+sitemap URL to the matching Google Search Console property after deployment.
+Only the public start page is indexable. User-specific investigation and case
+workspace pages are intentionally excluded from search results.
+
+Build and run it locally from this directory:
+
+```bash
+docker build -t sherlok .
+docker run --rm -p 3000:3000 \
+  -e LLM_PROVIDER=openai \
+  -e OPENAI_API_KEY=your-provider-key \
+  sherlok
+```
 
 ## Read before implementation
 

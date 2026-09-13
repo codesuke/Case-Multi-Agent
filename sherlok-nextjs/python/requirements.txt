@@ -1,0 +1,9 @@
+fastapi==0.141.1
+uvicorn==0.52.0
+python-multipart==0.0.32
+pydantic
+google-generativeai
+openai
+python-dotenv
+pdf-inspector==1.19.0
+python-docx

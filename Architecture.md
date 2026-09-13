@@ -28,7 +28,10 @@ The detailed pipeline is recorded in the implemented design specification.
 │   ├── skeptic.py
 │   └── lead_detective.py
 ├── tests/                             # Unit tests and a deterministic E2E test
-├── sherlok-nextjs/                    # Next.js investigation workspace
+├── sherlok-nextjs/                    # Self-contained deployment workspace
+│   ├── python/                        # Bundled Python orchestration runtime
+│   ├── docker/start.sh                # Starts both runtime processes
+│   └── Dockerfile                     # Builds the complete application image
 ├── docs/
 │   ├── adr/
 │   ├── agents/
@@ -63,6 +66,12 @@ It never displays hidden model reasoning. REST is used for commands and
 snapshots. Server-sent events are used for the one-way live progress stream.
 The Python runtime owns case state, validation, orchestration, and provider
 configuration.
+
+For the configured single-image deployment, `sherlok-nextjs/` is the Docker
+build context. Its `python/` directory contains the bundled Python runtime;
+the image starts FastAPI privately on loopback and exposes only Next.js. See
+[`docs/adr/0002-single-image-nextjs-python-runtime.md`](docs/adr/0002-single-image-nextjs-python-runtime.md)
+for the deployment decision and source-parity constraint during migration.
 
 ## Dependency Boundaries
 
@@ -123,9 +132,11 @@ when their structured output violates an evidence-citation or verdict contract.
 
 ## Where New Code Belongs
 
-- Add a reusable investigation data type to `case_file.py`.
-- Add a specialist's reasoning and output schema under `agents/`.
-- Add pipeline control flow or stream events to `orchestrator.py`.
+- Add a reusable investigation data type to `sherlok-nextjs/python/case_file.py`.
+- Add a specialist's reasoning and output schema under
+  `sherlok-nextjs/python/agents/`.
+- Add pipeline control flow or stream events to
+  `sherlok-nextjs/python/orchestrator.py`.
 - Add transport-only behavior to the Python HTTP/event adapter.
 - Add user interaction and rendering to `sherlok-nextjs/`.
 - Keep `app.py` stable as a temporary migration reference.
