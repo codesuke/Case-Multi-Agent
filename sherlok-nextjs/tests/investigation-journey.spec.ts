@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const investigationId = "unrelated-fictional-case";
 const snapshot = {
+  transport_version: "1.0.0" as const,
   investigation_id: investigationId,
   is_complete: false,
   case_file: {
@@ -9,8 +10,12 @@ const snapshot = {
     canonical_material: "Lighthouse log: the signal lantern went dark after midnight.",
     material_blocks: [],
     material_warnings: [],
+    human_notes: [],
+    source_text: {},
+    revised_specialists: [],
     evidence: [{ id: "CLUE-7", classification: "observed_fact", statement: "The lantern was dark after midnight.", source_references: [] }],
     suspect_profiles: [],
+    timeline: { events: [], issues: [] },
     skeptic_reviews: [],
   },
 };
@@ -21,12 +26,18 @@ const reviewSnapshot = {
   case_file: {
     ...snapshot.case_file,
     verdict: {
-      confidence: "moderate",
+      confidence: 65,
       conclusions: [{ rank: 1, suspect: "The lighthouse keeper", explanation: "The signal log is incomplete.", evidence_ids: ["CLUE-7"] }],
       limitations: ["No witness confirms the final entry."],
       review_status: "awaiting_review",
     },
   },
+};
+
+type StartFailure = {
+  stage: string;
+  message: string;
+  recovery_action: string;
 };
 
 async function mockInvestigationApi(page: Page) {
@@ -40,8 +51,19 @@ async function mockInvestigationApi(page: Page) {
   await page.route(`**/api/investigations/${investigationId}`, (route) => route.fulfill({ json: snapshot }));
   await page.route(`**/api/investigations/${investigationId}/events**`, (route) => route.fulfill({
     contentType: "text/event-stream",
-    body: `id: 1\nevent: evidence_collection_started\ndata: {"event_id":1,"event_type":"evidence_collection_started","investigation_id":"${investigationId}","stage":"evidence_collection","status":"working","timestamp":"2026-09-12T00:00:00Z","evidence_ids":[]}\n\n`,
+    body: `id: 1\nevent: evidence_collection_started\ndata: {"transport_version":"1.0.0","event_id":1,"event_type":"evidence_collection_started","investigation_id":"${investigationId}","stage":"evidence_collection","status":"working","timestamp":"2026-09-12T00:00:00Z","evidence_ids":[]}\n\n`,
   }));
+}
+
+async function mockStartFailure(
+  page: Page,
+  status: number,
+  detail: StartFailure,
+) {
+  await page.route("**/api/investigations", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    await route.fulfill({ status, json: { detail } });
+  });
 }
 
 test("starts an unrelated case, opens its case file, and follows evidence", async ({ page }) => {
@@ -54,7 +76,94 @@ test("starts an unrelated case, opens its case file, and follows evidence", asyn
   await page.getByRole("link", { name: "Open Case File" }).click();
   await expect(page).toHaveURL(new RegExp(`/case/overview\\?investigation_id=${investigationId}`));
   await page.getByRole("link", { name: "Evidence" }).click();
-  await expect(page.getByText("CLUE-7")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /CLUE-7/ })).toBeVisible();
+});
+
+test("rejects an unsupported file before it sends the start command", async ({ page }) => {
+  let startCalls = 0;
+  await page.route("**/api/investigations", async (route) => {
+    if (route.request().method() === "POST") startCalls += 1;
+    await route.fallback();
+  });
+  await page.goto("/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "case-image.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("not case material"),
+  });
+
+  await expect(page.getByText("case-image.png can’t be used.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start investigation" })).toBeDisabled();
+  expect(startCalls).toBe(0);
+});
+
+test("keeps the User on Start Investigation and focuses a safe material failure", async ({ page }) => {
+  await mockStartFailure(page, 400, {
+    stage: "case_file",
+    message: "The supplied material cannot be used.",
+    recovery_action: "Add readable case material and try again.",
+  });
+  await page.goto("/");
+  await page.getByLabel("Paste case material").fill("Unreadable material");
+  await page.getByRole("button", { name: "Start investigation" }).click();
+
+  await expect(page).toHaveURL(/\/$/);
+  const alert = page
+    .getByRole("region", { name: "Start investigation" })
+    .getByRole("alert");
+  await expect(alert).toContainText("The supplied material cannot be used.");
+  await expect(alert).toContainText("Add readable case material and try again.");
+  await expect(alert).toBeFocused();
+});
+
+test("shows a safe recovery action when the investigation service is unavailable", async ({ page }) => {
+  await mockStartFailure(page, 503, {
+    stage: "investigation_service",
+    message: "The investigation service is unavailable.",
+    recovery_action: "Wait a moment and try starting the investigation again.",
+  });
+  await page.goto("/");
+  await page.getByLabel("Paste case material").fill("A signal lantern is missing.");
+  await page.getByRole("button", { name: "Start investigation" }).click();
+
+  const alert = page
+    .getByRole("region", { name: "Start investigation" })
+    .getByRole("alert");
+  await expect(alert).toContainText("The investigation service is unavailable.");
+  await expect(alert).toContainText("Wait a moment and try starting the investigation again.");
+  await expect(alert).not.toContainText("127.0.0.1");
+  await expect(alert).not.toContainText("SHERLOK_PYTHON_API_URL");
+});
+
+test("locks every material control while Start Investigation is pending", async ({ page }) => {
+  let releaseStart: () => void;
+  const startReleased = new Promise<void>((resolve) => {
+    releaseStart = resolve;
+  });
+  let requestReceived: () => void;
+  const startRequested = new Promise<void>((resolve) => {
+    requestReceived = resolve;
+  });
+  await page.route("**/api/investigations", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    requestReceived();
+    await startReleased;
+    await route.fulfill({ json: { investigation_id: investigationId } });
+  });
+  await page.goto("/");
+  await page.locator('input[type="file"]').setInputFiles([
+    { name: "case-material.txt", mimeType: "text/plain", buffer: Buffer.from("Case material") },
+    { name: "case-image.png", mimeType: "image/png", buffer: Buffer.from("Not case material") },
+  ]);
+  await page.getByRole("button", { name: "Start investigation" }).click();
+  await startRequested;
+
+  await expect(page.getByRole("button", { name: "Preparing case file…" })).toBeDisabled();
+  await expect(page.locator('input[type="file"]')).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Remove case-material.txt" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Dismiss case-image.png error" })).toBeDisabled();
+  releaseStart!();
+  await expect(page).toHaveURL(new RegExp(`/agent-workspace\\?investigation_id=${investigationId}`));
 });
 
 test("redirects the legacy agent route without losing the investigation ID", async ({ page }) => {

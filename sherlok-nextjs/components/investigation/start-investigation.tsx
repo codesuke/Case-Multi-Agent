@@ -13,7 +13,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   asSafeTransportFailure,
@@ -52,8 +52,13 @@ export function StartInvestigation() {
   const [submissionError, setSubmissionError] =
     useState<SubmissionError | null>(null);
   const picker = useRef<HTMLInputElement>(null);
+  const submissionErrorNotice = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const ready = Boolean(text.trim() || files.length);
+
+  useEffect(() => {
+    if (submissionError) submissionErrorNotice.current?.focus();
+  }, [submissionError]);
 
   function addFiles(items: FileList | null) {
     if (!items || starting) return;
@@ -141,6 +146,7 @@ export function StartInvestigation() {
                 ready={ready}
                 starting={starting}
                 submissionError={submissionError}
+                submissionErrorNotice={submissionErrorNotice}
                 onStart={begin}
               />
             </div>
@@ -163,7 +169,7 @@ function MaterialPanel({
   return (
     <section
       className="rounded-lg border border-[#d8c4a0] bg-[#f7ead3]/70 p-4 sm:p-5"
-      aria-labelledby="paste-material-heading"
+      aria-label="Case material input"
     >
       <PanelHeading
         icon={<FileText />}
@@ -222,6 +228,7 @@ function FilesPanel({
         className="sr-only"
         type="file"
         multiple
+        disabled={starting}
         accept=".txt,.md,.docx,.pdf"
         onChange={(event) => {
           onAddFiles(event.target.files);
@@ -269,6 +276,7 @@ function FilesPanel({
               <RejectedSourceRow
                 file={file}
                 key={file.id}
+                starting={starting}
                 onRemove={onRemoveRejected}
               />
             ))}
@@ -346,11 +354,13 @@ function ActionPanel({
   ready,
   starting,
   submissionError,
+  submissionErrorNotice,
   onStart,
 }: {
   ready: boolean;
   starting: boolean;
   submissionError: SubmissionError | null;
+  submissionErrorNotice: React.RefObject<HTMLDivElement | null>;
   onStart: () => void;
 }) {
   return (
@@ -388,8 +398,10 @@ function ActionPanel({
       )}
       {submissionError && (
         <div
+          ref={submissionErrorNotice}
           className="mt-3 flex gap-3 rounded-lg border border-[#d99a48] bg-[#f6e0bc] px-4 py-3 text-sm text-[#783f14]"
           role="alert"
+          tabIndex={-1}
         >
           <AlertTriangle className="mt-0.5 size-5 shrink-0" />
           <p>
@@ -442,9 +454,11 @@ function SourceRow({
 
 function RejectedSourceRow({
   file,
+  starting,
   onRemove,
 }: {
   file: Source;
+  starting: boolean;
   onRemove: (id: string) => void;
 }) {
   return (
@@ -456,8 +470,9 @@ function RejectedSourceRow({
       </p>
       <button
         type="button"
-        className="self-start rounded p-1 hover:bg-[#f0ce94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18afa3]"
+        className="self-start rounded p-1 hover:bg-[#f0ce94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18afa3] disabled:cursor-not-allowed disabled:opacity-60"
         aria-label={`Dismiss ${file.name} error`}
+        disabled={starting}
         onClick={() => onRemove(file.id)}
       >
         <Trash2 className="size-4" />
